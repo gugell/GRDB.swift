@@ -1,14 +1,13 @@
 private struct RowKeyedDecodingContainer<Key: CodingKey>: KeyedDecodingContainerProtocol {
     let row: Row
     
-    init(row: Row, codingPath: [CodingKey?]) {
+    init(row: Row) {
         self.row = row
-        self.codingPath = codingPath
     }
     
     /// The path of coding keys taken to get to this point in decoding.
     /// A `nil` value indicates an unkeyed container.
-    let codingPath: [CodingKey?]
+    var codingPath: [CodingKey?] { return [] }
     
     /// All the keys the `Decoder` has for this container.
     ///
@@ -59,53 +58,20 @@ private struct RowKeyedDecodingContainer<Key: CodingKey>: KeyedDecodingContainer
     /// - returns: A decoded value of the requested type, or `nil` if the `Decoder` does not have an entry associated with the given key, or if the value is a null value.
     /// - throws: `DecodingError.typeMismatch` if the encountered encoded value is not convertible to the requested type.
     func decodeIfPresent<T>(_ type: T.Type, forKey key: Key) throws -> T? where T : Decodable {
+        guard let dbValue: DatabaseValue = row[key.stringValue] else {
+            // Missing column: value is not present
+            return nil
+        }
+        
         if let type = T.self as? DatabaseValueConvertible.Type {
             // Prefer DatabaseValueConvertible decoding over Decodable.
-            // This allows custom database decoding, such as decoding Date from
-            // String, for example.
-            if let dbValue: DatabaseValue = row[key.stringValue] {
-                return type.fromDatabaseValue(dbValue) as! T?
-            } else {
-                return nil
-            }
-        } else if let type = T.self as? RowConvertible.Type {
-            // Prefer RowConvertible decoding over Decodable.
-            // This allows custom database decoding.
-            if let scopedRow = row.scoped(on: key.stringValue) {
-                return (type.init(row: scopedRow) as! T)
-            } else {
-                return nil
-            }
-        } else if let dbValue: DatabaseValue = row[key.stringValue] {
-            // We don't know if T(from: Decoder) will request a single value
-            // container, or a keyed container.
-            //
-            // Since the column is present, let's assume that T will ask for a
-            // single value container (a column). This is our only opportunity
-            // to turn NULL into nil. If T eventually asks for a keyed container
-            // (a row scope), then the user will face a weird error.
-            //
-            // This looks like a design issue in the Codable library to me.
-            if dbValue.isNull {
-                return nil
-            } else {
-                return try T(from: RowDecoder(row: row, codingPath: codingPath + [key]))
-            }
-        } else if row.hasScope(key.stringValue) {
-            // We don't know if T(from: Decoder) will request a single value
-            // container, or a keyed container.
-            //
-            // Since the row scope is present, let's assume that T will ask for
-            // a keyed container (a row scope). If T eventually asks for a
-            // single value container (a column), then the user will face a
-            // weird error.
-            //
-            // This looks like a design issue in the Codable library to me.
-            return try T(from: RowDecoder(row: row, codingPath: codingPath + [key]))
-        } else {
-            // Both column and row scope are missing: we are sure that the value
-            // is missing.
+            // This allows decoding Date from String, or DatabaseValue from NULL.
+            return type.fromDatabaseValue(dbValue) as! T?
+        } else if dbValue.isNull {
+            // NULL Column
             return nil
+        } else {
+            return try T(from: RowDecoder(row: row, codingPath: codingPath + [key]))
         }
     }
     
@@ -152,16 +118,13 @@ private struct RowKeyedDecodingContainer<Key: CodingKey>: KeyedDecodingContainer
 
 private struct RowSingleValueDecodingContainer: SingleValueDecodingContainer {
     let row: Row
-    let codingPath: [CodingKey?]
-    var column: String {
-        return codingPath.last!!.stringValue
-    }
+    let column: CodingKey
     
     /// Decodes a null value.
     ///
     /// - returns: Whether the encountered value was null.
     func decodeNil() -> Bool {
-        return row[column] == nil
+        return row[column.stringValue] == nil
     }
     
     /// Decodes a single value of the given type.
@@ -170,20 +133,20 @@ private struct RowSingleValueDecodingContainer: SingleValueDecodingContainer {
     /// - returns: A value of the requested type.
     /// - throws: `DecodingError.typeMismatch` if the encountered encoded value cannot be converted to the requested type.
     /// - throws: `DecodingError.valueNotFound` if the encountered encoded value is null.
-    func decode(_ type: Bool.Type) throws -> Bool { return row[column] }
-    func decode(_ type: Int.Type) throws -> Int { return row[column] }
-    func decode(_ type: Int8.Type) throws -> Int8 { return row[column] }
-    func decode(_ type: Int16.Type) throws -> Int16 { return row[column] }
-    func decode(_ type: Int32.Type) throws -> Int32 { return row[column] }
-    func decode(_ type: Int64.Type) throws -> Int64 { return row[column] }
-    func decode(_ type: UInt.Type) throws -> UInt { return row[column] }
-    func decode(_ type: UInt8.Type) throws -> UInt8 { return row[column] }
-    func decode(_ type: UInt16.Type) throws -> UInt16 { return row[column] }
-    func decode(_ type: UInt32.Type) throws -> UInt32 { return row[column] }
-    func decode(_ type: UInt64.Type) throws -> UInt64 { return row[column] }
-    func decode(_ type: Float.Type) throws -> Float { return row[column] }
-    func decode(_ type: Double.Type) throws -> Double { return row[column] }
-    func decode(_ type: String.Type) throws -> String { return row[column] }
+    func decode(_ type: Bool.Type) throws -> Bool { return row[column.stringValue] }
+    func decode(_ type: Int.Type) throws -> Int { return row[column.stringValue] }
+    func decode(_ type: Int8.Type) throws -> Int8 { return row[column.stringValue] }
+    func decode(_ type: Int16.Type) throws -> Int16 { return row[column.stringValue] }
+    func decode(_ type: Int32.Type) throws -> Int32 { return row[column.stringValue] }
+    func decode(_ type: Int64.Type) throws -> Int64 { return row[column.stringValue] }
+    func decode(_ type: UInt.Type) throws -> UInt { return row[column.stringValue] }
+    func decode(_ type: UInt8.Type) throws -> UInt8 { return row[column.stringValue] }
+    func decode(_ type: UInt16.Type) throws -> UInt16 { return row[column.stringValue] }
+    func decode(_ type: UInt32.Type) throws -> UInt32 { return row[column.stringValue] }
+    func decode(_ type: UInt64.Type) throws -> UInt64 { return row[column.stringValue] }
+    func decode(_ type: Float.Type) throws -> Float { return row[column.stringValue] }
+    func decode(_ type: Double.Type) throws -> Double { return row[column.stringValue] }
+    func decode(_ type: String.Type) throws -> String { return row[column.stringValue] }
     
     /// Decodes a single value of the given type.
     ///
@@ -194,11 +157,10 @@ private struct RowSingleValueDecodingContainer: SingleValueDecodingContainer {
     func decode<T>(_ type: T.Type) throws -> T where T : Decodable {
         if let type = T.self as? DatabaseValueConvertible.Type {
             // Prefer DatabaseValueConvertible decoding over Decodable.
-            // This allows custom database decoding, such as decoding Date from
-            // String, for example.
-            return type.fromDatabaseValue(row[column]) as! T
+            // This allows decoding Date from String, or DatabaseValue from NULL.
+            return type.fromDatabaseValue(row[column.stringValue]) as! T
         } else {
-            return try T(from: RowDecoder(row: row, codingPath: codingPath))
+            return try T(from: RowDecoder(row: row, codingPath: [column]))
         }
     }
 }
@@ -216,16 +178,14 @@ private struct RowDecoder: Decoder {
     var userInfo: [CodingUserInfoKey : Any] { return [:] }
     
     func container<Key>(keyedBy type: Key.Type) throws -> KeyedDecodingContainer<Key> {
-        if let key = codingPath.last {
-            // Asked for a keyed type: look for a row scope
-            guard let scopedRow = row.scoped(on: key!.stringValue) else {
-                throw DecodingError.keyNotFound(key!, DecodingError.Context(codingPath: codingPath, debugDescription: "missing row scope: \(key!.stringValue)"))
-            }
-            return KeyedDecodingContainer(RowKeyedDecodingContainer<Key>(row: scopedRow, codingPath: codingPath))
-        } else {
-            // Asked for a keyed type at the top level
-            return KeyedDecodingContainer(RowKeyedDecodingContainer<Key>(row: row, codingPath: codingPath))
+        // Asked for a keyed type: top level required
+        guard codingPath.isEmpty else {
+            throw DecodingError.typeMismatch(
+                RowDecoder.self,
+                DecodingError.Context(codingPath: codingPath, debugDescription: "nested decoding is not supported"))
         }
+        
+        return KeyedDecodingContainer(RowKeyedDecodingContainer<Key>(row: row))
     }
     
     func unkeyedContainer() throws -> UnkeyedDecodingContainer {
@@ -235,7 +195,13 @@ private struct RowDecoder: Decoder {
     }
     
     func singleValueContainer() throws -> SingleValueDecodingContainer {
-        return RowSingleValueDecodingContainer(row: row, codingPath: codingPath)
+        // Asked for a value type: column name required
+        guard let lastCodingKey = codingPath.last, let codingKey = lastCodingKey else {
+            throw DecodingError.typeMismatch(
+                RowDecoder.self,
+                DecodingError.Context(codingPath: codingPath, debugDescription: "single value decoding requires a coding key"))
+        }
+        return RowSingleValueDecodingContainer(row: row, column: codingKey)
     }
 }
 
