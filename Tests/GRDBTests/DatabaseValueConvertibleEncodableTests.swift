@@ -29,16 +29,15 @@ class DatabaseValueConvertibleEncodableTests: GRDBTestCase {
         XCTAssertEqual(dbValue.storage.value as! String, "foo")
     }
     
-    // This test crashes the compiler: https://bugs.swift.org/browse/SR-5050
-//     func testEncodableRawRepresentable() {
-//         // Test that the rawValue is encoded with DatabaseValueConvertible, not with Encodable
-//         struct Value : RawRepresentable, Encodable, DatabaseValueConvertible {
-//             let rawValue: Date
-//         }
-//         
-//         let dbValue = Value(rawValue: Date()).databaseValue
-//         XCTAssertEqual(dbValue.storage.value is String)
-//     }
+     func testEncodableRawRepresentable() {
+         // Test that the rawValue is encoded with DatabaseValueConvertible, not with Encodable
+         struct Value : RawRepresentable, Encodable, DatabaseValueConvertible {
+             let rawValue: Date
+         }
+         
+         let dbValue = Value(rawValue: Date()).databaseValue
+         XCTAssertTrue(dbValue.storage.value is String)
+     }
     
     func testEncodableRawRepresentableEnum() {
         // Make sure this kind of declaration is possible
