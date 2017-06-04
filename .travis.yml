@@ -15,16 +15,16 @@ git:
 # 2. Ensure that the appropriate `TOOLCHAIN` environment variable is
 #    specified for all jobs that should use the downloaded toolchain.
 #    For example:
-#       - TOOLCHAIN=org.swift.4020170524a
+#       - TOOLCHAIN=org.swift.4020170602a
 #    (Use the CFBundleIdentifier from the installed Toolchain’s Info.plist
 #    in /Library/Developer/Toolchains/<toolchain>.xctoolchain/Info.plist.)
 #
 #    Alternatively, it can also be specified at the end of the make command
 #    for the job. For example:
-#       script: make test_framework_GRDBOSX TOOLCHAIN=org.swift.4020170524a
+#       script: make test_framework_GRDBOSX TOOLCHAIN=org.swift.4020170602a
 #
 install:
-  - .ci/scripts/install_swift_toolchain.sh https://swift.org/builds/swift-4.0-branch/xcode/swift-4.0-DEVELOPMENT-SNAPSHOT-2017-05-24-a/swift-4.0-DEVELOPMENT-SNAPSHOT-2017-05-24-a-osx.pkg
+  - .ci/scripts/install_swift_toolchain.sh https://swift.org/builds/swift-4.0-branch/xcode/swift-4.0-DEVELOPMENT-SNAPSHOT-2017-06-02-a/swift-4.0-DEVELOPMENT-SNAPSHOT-2017-06-02-a-osx.pkg
 
 jobs:
   include:
@@ -37,7 +37,7 @@ jobs:
       gemfile: .ci/gemfiles/Gemfile.travis
       osx_image: xcode8.3
       env:
-        - TOOLCHAIN=org.swift.4020170524a
+        - TOOLCHAIN=org.swift.4020170602a
         - TID=GRDBOSX (Xcode 8.3, macOS 10.12)
       script: make test_framework_GRDBOSX
 
@@ -70,7 +70,7 @@ jobs:
       gemfile: .ci/gemfiles/Gemfile.travis
       osx_image: xcode8.3
       env:
-        - TOOLCHAIN=org.swift.4020170524a
+        - TOOLCHAIN=org.swift.4020170602a
         - TID=GRDBiOS (Xcode 8.3, iOS <MAX>)
       script: make test_framework_GRDBiOS_maxTarget
 
@@ -79,7 +79,7 @@ jobs:
       gemfile: .ci/gemfiles/Gemfile.travis
       osx_image: xcode8.3
       env:
-        - TOOLCHAIN=org.swift.4020170524a
+        - TOOLCHAIN=org.swift.4020170602a
         - TID=GRDBiOS (Xcode 8.3, iOS <MIN>)
       script: make test_framework_GRDBiOS_minTarget
 
@@ -96,7 +96,7 @@ jobs:
       gemfile: .ci/gemfiles/Gemfile.travis
       osx_image: xcode8.3
       env:
-        - TOOLCHAIN=org.swift.4020170524a
+        - TOOLCHAIN=org.swift.4020170602a
         - TID=GRDB [SPM] (Xcode 8.3, macOS 10.12)
       script: make test_SPM
 
@@ -108,7 +108,7 @@ jobs:
       gemfile: .ci/gemfiles/Gemfile.travis
       osx_image: xcode8.3
       env:
-        - TOOLCHAIN=org.swift.4020170524a
+        - TOOLCHAIN=org.swift.4020170602a
         - TID=GRDBCustomSQLiteOSX (Xcode 8.3, macOS 10.12)
       script: make test_framework_GRDBCustomSQLiteOSX
 
@@ -125,7 +125,7 @@ jobs:
       gemfile: .ci/gemfiles/Gemfile.travis
       osx_image: xcode8.3
       env:
-        - TOOLCHAIN=org.swift.4020170524a
+        - TOOLCHAIN=org.swift.4020170602a
         - TID=GRDBCustomSQLiteiOS (Xcode 8.3, iOS <MAX>)
       script: make test_framework_GRDBCustomSQLiteiOS_maxTarget
 
@@ -134,7 +134,7 @@ jobs:
       gemfile: .ci/gemfiles/Gemfile.travis
       osx_image: xcode8.3
       env:
-        - TOOLCHAIN=org.swift.4020170524a
+        - TOOLCHAIN=org.swift.4020170602a
         - TID=GRDBCustomSQLiteiOS (Xcode 8.3, iOS <MIN>)
       script: make test_framework_GRDBCustomSQLiteiOS_minTarget
 
@@ -154,7 +154,7 @@ jobs:
       gemfile: .ci/gemfiles/Gemfile.travis
       osx_image: xcode8.3
       env:
-        - TOOLCHAIN=org.swift.4020170524a
+        - TOOLCHAIN=org.swift.4020170602a
         - TID=GRDBCipherOSX (Xcode 8.3, macOS 10.12)
       script: make test_framework_GRDBCipherOSX
 
@@ -171,7 +171,7 @@ jobs:
       gemfile: .ci/gemfiles/Gemfile.travis
       osx_image: xcode8.3
       env:
-        - TOOLCHAIN=org.swift.4020170524a
+        - TOOLCHAIN=org.swift.4020170602a
         - TID=GRDBCipheriOS (Xcode 8.3, iOS <MAX>)
       script: make test_framework_GRDBCipheriOS_maxTarget
 
@@ -180,7 +180,7 @@ jobs:
       gemfile: .ci/gemfiles/Gemfile.travis
       osx_image: xcode8.3
       env:
-        - TOOLCHAIN=org.swift.4020170524a
+        - TOOLCHAIN=org.swift.4020170602a
         - TID=GRDBCipheriOS (Xcode 8.3, iOS <MIN>)
       script: make test_framework_GRDBCipheriOS_minTarget
 
@@ -200,7 +200,7 @@ jobs:
       gemfile: .ci/gemfiles/Gemfile.travis
       osx_image: xcode8.3
       env:
-        - TOOLCHAIN=org.swift.4020170524a
+        - TOOLCHAIN=org.swift.4020170602a
         - TID=Manual Install
       script: make test_install_manual
 
@@ -209,7 +209,7 @@ jobs:
       gemfile: .ci/gemfiles/Gemfile.travis
       osx_image: xcode8.3
       env:
-        - TOOLCHAIN=org.swift.4020170524a
+        - TOOLCHAIN=org.swift.4020170602a
         - TID=Manual Install (GRDBCipher)
       script: make test_install_GRDBCipher
 
