@@ -44,39 +44,6 @@ private struct PersistableKeyedEncodingContainer<Key: CodingKey> : KeyedEncoding
         }
     }
     
-    /// Encodes the given value for the given key if it is not `nil`.
-    ///
-    /// - parameter value: The value to encode.
-    /// - parameter key: The key to associate the value with.
-    /// - throws: `EncodingError.invalidValue` if the given value is invalid in the current context for this format.
-    mutating func encodeIfPresent(_ value: Bool?, forKey key: Key) throws { encode(value, key.stringValue) }
-    mutating func encodeIfPresent(_ value: Int?, forKey key: Key) throws { encode(value, key.stringValue) }
-    mutating func encodeIfPresent(_ value: Int8?, forKey key: Key) throws { encode(value, key.stringValue) }
-    mutating func encodeIfPresent(_ value: Int16?, forKey key: Key) throws { encode(value, key.stringValue) }
-    mutating func encodeIfPresent(_ value: Int32?, forKey key: Key) throws { encode(value, key.stringValue) }
-    mutating func encodeIfPresent(_ value: Int64?, forKey key: Key) throws { encode(value, key.stringValue) }
-    mutating func encodeIfPresent(_ value: UInt?, forKey key: Key) throws { encode(value, key.stringValue) }
-    mutating func encodeIfPresent(_ value: UInt8?, forKey key: Key) throws { encode(value, key.stringValue) }
-    mutating func encodeIfPresent(_ value: UInt16?, forKey key: Key) throws { encode(value, key.stringValue) }
-    mutating func encodeIfPresent(_ value: UInt32?, forKey key: Key) throws { encode(value, key.stringValue) }
-    mutating func encodeIfPresent(_ value: UInt64?, forKey key: Key) throws { encode(value, key.stringValue) }
-    mutating func encodeIfPresent(_ value: Float?, forKey key: Key) throws { encode(value, key.stringValue) }
-    mutating func encodeIfPresent(_ value: Double?, forKey key: Key) throws { encode(value, key.stringValue) }
-    mutating func encodeIfPresent(_ value: String?, forKey key: Key) throws { encode(value, key.stringValue) }
-    
-    /// Encodes the given value for the given key if it is not `nil`.
-    ///
-    /// - parameter value: The value to encode.
-    /// - parameter key: The key to associate the value with.
-    /// - throws: `EncodingError.invalidValue` if the given value is invalid in the current context for this format.
-    mutating func encodeIfPresent<T>(_ value: T?, forKey key: Key) throws where T : Encodable {
-        if T.self is DatabaseValueConvertible.Type {
-            encode(value.map { $0 as! DatabaseValueConvertible }, key.stringValue)
-        } else {
-            throw EncodingError.invalidValue(value as Any, EncodingError.Context(codingPath: codingPath, debugDescription: "value does not adopt DatabaseValueConvertible"))
-        }
-    }
-    
     /// Stores a keyed encoding container for the given key and returns it.
     ///
     /// - parameter keyType: The key type to use for the container.
@@ -148,12 +115,12 @@ private struct DatabaseValueEncodingContainer : SingleValueEncodingContainer {
     /// - throws: `EncodingError.invalidValue` if the given value is invalid in the current context for this format.
     /// - precondition: May not be called after a previous `self.encode(_:)` call.
     func encode<T>(_ value: T) throws where T : Encodable {
-        if let dbv = DatabaseValue(value: value) {
-            encode(dbv, key.stringValue)
+        if let dbValueConvertible = value as? DatabaseValueConvertible {
+            // Prefer DatabaseValueConvertible encoding over Decodable.
+            // This allows us to encode Date as String, for example.
+            encode(dbValueConvertible.databaseValue, key.stringValue)
         } else {
-            throw EncodingError.invalidValue(
-                value,
-                EncodingError.Context(codingPath: [key], debugDescription: "value does not adopt DatabaseValueConvertible"))
+            try value.encode(to: PersistableEncoder(codingPath: [key], encode: encode))
         }
     }
 }
@@ -180,6 +147,10 @@ private struct PersistableEncoder : Encoder {
     /// - precondition: May not be called after a prior `self.unkeyedContainer()` call.
     /// - precondition: May not be called after a value has been encoded through a previous `self.singleValueContainer()` call.
     func container<Key>(keyedBy type: Key.Type) -> KeyedEncodingContainer<Key> {
+        // Asked for a keyed type: top level required
+        guard codingPath.isEmpty else {
+            fatalError("unkeyed encoding is not supported")
+        }
         return KeyedEncodingContainer(PersistableKeyedEncodingContainer<Key>(encode: encode))
     }
     

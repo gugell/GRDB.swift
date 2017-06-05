@@ -8,133 +8,334 @@ import Foundation
     import GRDB
 #endif
 
-private enum Color: String, Encodable {
-    case red, green, blue
-}
+class MutablePersistableEncodableTests: GRDBTestCase { }
 
-private struct EncodableStruct : MutablePersistable, Encodable {
-    static let databaseTableName = "t1"
-    var id: Int64?
-    let name: String
-    let color: Color?
+// MARK: - MutablePersistable conformance derived from Encodable
+
+extension MutablePersistableEncodableTests {
     
-    mutating func didInsert(with rowID: Int64, for column: String?) {
-        id = rowID
-    }
-}
-
-private class EncodableClass : Persistable, Encodable {
-    static let databaseTableName = "t1"
-    var id: Int64?
-    let name: String
-    let color: Color?
-    
-    init(id: Int64?, name: String, color: Color?) {
-        self.id = id
-        self.name = name
-        self.color = color
-    }
-    
-    func didInsert(with rowID: Int64, for column: String?) {
-        id = rowID
-    }
-}
-
-private struct CustomEncodableStruct : MutablePersistable, Encodable {
-    static let databaseTableName = "t1"
-    var identifier: Int64?
-    let pseudo: String
-    let color: Color?
-    
-    private enum CodingKeys : String, CodingKey {
-        case identifier = "id"
-        case pseudo = "name"
-        case color
-    }
-    
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(identifier, forKey: .identifier)
-        try container.encode(pseudo.uppercased(), forKey: .pseudo)
-        try container.encodeIfPresent(color, forKey: .color)
-    }
-    
-    mutating func didInsert(with rowID: Int64, for column: String?) {
-        identifier = rowID
-    }
-}
-
-private struct StructWithDate : Persistable, Encodable {
-    static let databaseTableName = "t1"
-    let date: Date
-}
-
-private struct StructWithURL : Persistable, Encodable {
-    static let databaseTableName = "t1"
-    let url: URL
-}
-
-private struct StructWithUUID : Persistable, Encodable {
-    static let databaseTableName = "t1"
-    let uuid: UUID
-}
-
-class MutablePersistableEncodableTests: GRDBTestCase {
-    func testEncodableStruct() throws {
+    func testTrivialEncodable() throws {
+        struct Struct : MutablePersistable, Encodable {
+            static let databaseTableName = "t1"
+            let value: String
+        }
+        
         let dbQueue = try makeDatabaseQueue()
         try dbQueue.inDatabase { db in
             try db.create(table: "t1") { t in
-                t.column("id", .integer).primaryKey()
-                t.column("name", .text).notNull()
-                t.column("color", .text)
+                t.column("value", .text)
             }
             
-            var value = EncodableStruct(id: nil, name: "Arthur", color: .red)
+            var value = Struct(value: "foo")
             try value.insert(db)
-            XCTAssertEqual(value.id, 1)
             
-            let row = try Row.fetchOne(db, "SELECT id, name, color FROM t1")!
-            XCTAssertEqual(row, ["id": 1, "name": "Arthur", "color": "red"])
-        }
-    }
-
-    func testEncodableClass() throws {
-        let dbQueue = try makeDatabaseQueue()
-        try dbQueue.inDatabase { db in
-            try db.create(table: "t1") { t in
-                t.column("id", .integer).primaryKey()
-                t.column("name", .text).notNull()
-                t.column("color", .text)
-            }
-            
-            let value = EncodableClass(id: nil, name: "Arthur", color: .red)
-            try value.insert(db)
-            XCTAssertEqual(value.id, 1)
-            
-            let row = try Row.fetchOne(db, "SELECT id, name, color FROM t1")!
-            XCTAssertEqual(row, ["id": 1, "name": "Arthur", "color": "red"])
+            let string = try String.fetchOne(db, "SELECT value FROM t1")!
+            XCTAssertEqual(string, "foo")
         }
     }
     
-    func testCustomEncodableStruct() throws {
+    func testCustomEncodable() throws {
+        struct Struct : MutablePersistable, Encodable {
+            static let databaseTableName = "t1"
+            let value: String
+            
+            private enum CodingKeys : String, CodingKey {
+                case value = "someColumn"
+            }
+            
+            func encode(to encoder: Encoder) throws {
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                try container.encode(value + " (Encodable)", forKey: .value)
+            }
+        }
+        
         let dbQueue = try makeDatabaseQueue()
         try dbQueue.inDatabase { db in
             try db.create(table: "t1") { t in
-                t.column("id", .integer).primaryKey()
-                t.column("name", .text).notNull()
-                t.column("color", .text)
+                t.column("someColumn", .text)
             }
             
-            var value = CustomEncodableStruct(identifier: nil, pseudo: "Arthur", color: .red)
+            var value = Struct(value: "foo")
             try value.insert(db)
-            XCTAssertEqual(value.identifier, 1)
             
-            let row = try Row.fetchOne(db, "SELECT id, name, color FROM t1")!
-            XCTAssertEqual(row, ["id": 1, "name": "ARTHUR", "color": "red"])
+            let string = try String.fetchOne(db, "SELECT someColumn FROM t1")!
+            XCTAssertEqual(string, "foo (Encodable)")
         }
     }
+    
+    func testCustomMutablePersistable() throws {
+        struct Struct : MutablePersistable, Encodable {
+            static let databaseTableName = "t1"
+            let value: String
+            
+            func encode(to container: inout PersistenceContainer) {
+                container["value"] = value + " (MutablePersistable)"
+            }
+        }
+        
+        let dbQueue = try makeDatabaseQueue()
+        try dbQueue.inDatabase { db in
+            try db.create(table: "t1") { t in
+                t.column("value", .text)
+            }
+            
+            var value = Struct(value: "foo")
+            try value.insert(db)
+            
+            let string = try String.fetchOne(db, "SELECT value FROM t1")!
+            XCTAssertEqual(string, "foo (MutablePersistable)")
+        }
+    }
+}
+
+// MARK: - Different kinds of single-value properties
+
+extension MutablePersistableEncodableTests {
+    
+    func testTrivialProperty() throws {
+        struct Struct : MutablePersistable, Encodable {
+            static let databaseTableName = "t1"
+            let int64: Int64
+            let optionalInt64: Int64?
+        }
+        
+        let dbQueue = try makeDatabaseQueue()
+        try dbQueue.inDatabase { db in
+            try db.create(table: "t1") { t in
+                t.column("int64", .integer)
+                t.column("optionalInt64", .integer)
+            }
+        }
+        
+        try dbQueue.inTransaction { db in
+            var value = Struct(int64: 123, optionalInt64: 456)
+            try value.insert(db)
+            
+            let row = try Row.fetchOne(db, "SELECT * FROM t1")!
+            XCTAssertEqual(row, ["int64": 123, "optionalInt64": 456])
+            return .rollback
+        }
+    
+        try dbQueue.inTransaction { db in
+            var value = Struct(int64: 123, optionalInt64: nil)
+            try value.insert(db)
+            
+            let row = try Row.fetchOne(db, "SELECT * FROM t1")!
+            XCTAssertEqual(row, ["int64": 123, "optionalInt64": nil])
+            return .rollback
+        }
+    }
+    
+    func testTrivialSingleValueEncodableProperty() throws {
+        struct Value : Encodable {
+            let string: String
+            
+            func encode(to encoder: Encoder) throws {
+                var container = encoder.singleValueContainer()
+                try container.encode(string)
+            }
+        }
+        
+        struct Struct : MutablePersistable, Encodable {
+            static let databaseTableName = "t1"
+            let value: Value
+            let optionalValue: Value?
+        }
+        
+        let dbQueue = try makeDatabaseQueue()
+        try dbQueue.inDatabase { db in
+            try db.create(table: "t1") { t in
+                t.column("value", .integer)
+                t.column("optionalValue", .integer)
+            }
+        }
+        
+        try dbQueue.inTransaction { db in
+            var value = Struct(value: Value(string: "foo"), optionalValue: Value(string: "bar"))
+            try value.insert(db)
+            
+            let row = try Row.fetchOne(db, "SELECT * FROM t1")!
+            XCTAssertEqual(row, ["value": "foo", "optionalValue": "bar"])
+            return .rollback
+        }
+        
+        try dbQueue.inTransaction { db in
+            var value = Struct(value: Value(string: "foo"), optionalValue: nil)
+            try value.insert(db)
+            
+            let row = try Row.fetchOne(db, "SELECT * FROM t1")!
+            XCTAssertEqual(row, ["value": "foo", "optionalValue": nil])
+            return .rollback
+        }
+    }
+    
+    func testNonTrivialSingleValueEncodableProperty() throws {
+        struct NestedValue : Encodable {
+            let string: String
+            
+            func encode(to encoder: Encoder) throws {
+                var container = encoder.singleValueContainer()
+                try container.encode(string)
+            }
+        }
+        
+        struct Value : Encodable {
+            let nestedValue: NestedValue
+            
+            func encode(to encoder: Encoder) throws {
+                var container = encoder.singleValueContainer()
+                try container.encode(nestedValue)
+            }
+        }
+        
+        struct Struct : MutablePersistable, Encodable {
+            static let databaseTableName = "t1"
+            let value: Value
+            let optionalValue: Value?
+        }
+        
+        let dbQueue = try makeDatabaseQueue()
+        try dbQueue.inDatabase { db in
+            try db.create(table: "t1") { t in
+                t.column("value", .integer)
+                t.column("optionalValue", .integer)
+            }
+        }
+        
+        try dbQueue.inTransaction { db in
+            var value = Struct(value: Value(nestedValue: NestedValue(string: "foo")), optionalValue: Value(nestedValue: NestedValue(string: "bar")))
+            try value.insert(db)
+            
+            let row = try Row.fetchOne(db, "SELECT * FROM t1")!
+            XCTAssertEqual(row, ["value": "foo", "optionalValue": "bar"])
+            return .rollback
+        }
+        
+        try dbQueue.inTransaction { db in
+            var value = Struct(value: Value(nestedValue: NestedValue(string: "foo")), optionalValue: nil)
+            try value.insert(db)
+            
+            let row = try Row.fetchOne(db, "SELECT * FROM t1")!
+            XCTAssertEqual(row, ["value": "foo", "optionalValue": nil])
+            return .rollback
+        }
+    }
+    
+    func testEncodableRawRepresentableProperty() throws {
+        // This test is somewhat redundant with testSingleValueEncodableProperty,
+        // since a RawRepresentable enum is a "single-value" Encodable.
+        //
+        // But with an explicit test for enums, we are sure that enums, widely
+        // used, are supported.
+        enum Value : String, Encodable {
+            case foo, bar
+        }
+        
+        struct Struct : MutablePersistable, Encodable {
+            static let databaseTableName = "t1"
+            let value: Value
+            let optionalValue: Value?
+        }
+        
+        let dbQueue = try makeDatabaseQueue()
+        try dbQueue.inDatabase { db in
+            try db.create(table: "t1") { t in
+                t.column("value", .integer)
+                t.column("optionalValue", .integer)
+            }
+        }
+        
+        try dbQueue.inTransaction { db in
+            var value = Struct(value: .foo, optionalValue: .bar)
+            try value.insert(db)
+            
+            let row = try Row.fetchOne(db, "SELECT * FROM t1")!
+            XCTAssertEqual(row, ["value": "foo", "optionalValue": "bar"])
+            return .rollback
+        }
+        
+        try dbQueue.inTransaction { db in
+            var value = Struct(value: .foo, optionalValue: nil)
+            try value.insert(db)
+            
+            let row = try Row.fetchOne(db, "SELECT * FROM t1")!
+            XCTAssertEqual(row, ["value": "foo", "optionalValue": nil])
+            return .rollback
+        }
+    }
+    
+    func testDatabaseValueConvertibleProperty() throws {
+        // This test makes sure that Date, for example, can be stored as a String.
+        //
+        // Without this preference for databaseValue over encode(to:),
+        // Date would encode as a double.
+        struct Value : Encodable, DatabaseValueConvertible {
+            let string: String
+            
+            init(string: String) {
+                self.string = string
+            }
+            
+            func encode(to encoder: Encoder) throws {
+                var container = encoder.singleValueContainer()
+                try container.encode(string + " (Encodable)")
+            }
+            
+            // DatabaseValueConvertible adoption
+            
+            var databaseValue: DatabaseValue {
+                return (string + " (DatabaseValueConvertible)").databaseValue
+            }
+            
+            static func fromDatabaseValue(_ databaseValue: DatabaseValue) -> Value? {
+                fatalError("irrelevant")
+            }
+        }
+        
+        struct Struct : MutablePersistable, Encodable {
+            static let databaseTableName = "t1"
+            let value: Value
+            let optionalValue: Value?
+        }
+        
+        let dbQueue = try makeDatabaseQueue()
+        try dbQueue.inDatabase { db in
+            try db.create(table: "t1") { t in
+                t.column("value", .integer)
+                t.column("optionalValue", .integer)
+            }
+        }
+        
+        try dbQueue.inTransaction { db in
+            var value = Struct(value: Value(string: "foo"), optionalValue: Value(string: "bar"))
+            try value.insert(db)
+            
+            let row = try Row.fetchOne(db, "SELECT * FROM t1")!
+            XCTAssertEqual(row, ["value": "foo (DatabaseValueConvertible)", "optionalValue": "bar (DatabaseValueConvertible)"])
+            return .rollback
+        }
+        
+        try dbQueue.inTransaction { db in
+            var value = Struct(value: Value(string: "foo"), optionalValue: nil)
+            try value.insert(db)
+            
+            let row = try Row.fetchOne(db, "SELECT * FROM t1")!
+            XCTAssertEqual(row, ["value": "foo (DatabaseValueConvertible)", "optionalValue": nil])
+            return .rollback
+        }
+    }
+}
+
+// MARK: - Foundation Codable Types
+
+extension MutablePersistableEncodableTests {
     
     func testStructWithDate() throws {
+        struct StructWithDate : Persistable, Encodable {
+            static let databaseTableName = "t1"
+            let date: Date
+        }
+        
         let dbQueue = try makeDatabaseQueue()
         try dbQueue.inDatabase { db in
             try db.create(table: "t1") { t in
@@ -157,6 +358,11 @@ class MutablePersistableEncodableTests: GRDBTestCase {
     }
     
     func testStructWithURL() throws {
+        struct StructWithURL : Persistable, Encodable {
+            static let databaseTableName = "t1"
+            let url: URL
+        }
+        
         let dbQueue = try makeDatabaseQueue()
         try dbQueue.inDatabase { db in
             try db.create(table: "t1") { t in
@@ -174,6 +380,11 @@ class MutablePersistableEncodableTests: GRDBTestCase {
     }
     
     func testStructWithUUID() throws {
+        struct StructWithUUID : Persistable, Encodable {
+            static let databaseTableName = "t1"
+            let uuid: UUID
+        }
+        
         let dbQueue = try makeDatabaseQueue()
         try dbQueue.inDatabase { db in
             try db.create(table: "t1") { t in

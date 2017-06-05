@@ -221,13 +221,13 @@ extension RowConvertibleDecodableTests {
             }
             
             init(from decoder: Decoder) throws {
-                string = try decoder.singleValueContainer().decode(String.self)
+                string = try decoder.singleValueContainer().decode(String.self) + " (Decodable)"
             }
             
             // DatabaseValueConvertible adoption
             
             var databaseValue: DatabaseValue {
-                return string.databaseValue
+                fatalError("irrelevant")
             }
             
             static func fromDatabaseValue(_ databaseValue: DatabaseValue) -> Value? {
