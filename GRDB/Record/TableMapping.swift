@@ -218,6 +218,7 @@ extension TableMapping {
     ///     try dbQueue.inDatabase { db in
     ///         let primaryKey = try Person.rowPrimaryKey(db)
     ///         let row = try Row.fetchOne(db, "SELECT * FROM persons")!
+    ///         row // <Row id: 1, name: "Arthur">
     ///         primaryKey(row) // ["id": 1]
     ///     }
     ///
@@ -230,6 +231,33 @@ extension TableMapping {
             return { row in [Column.rowID.name: row.value(Column.rowID)] }
         } else {
             return { _ in [:] }
+        }
+    }
+    
+    /// Returns a function that returns the primary key value of a row.
+    ///
+    /// If the table has no primary key, and selectsRowID is true, the primary
+    /// key is the "rowid" column.
+    ///
+    ///     try dbQueue.inDatabase { db in
+    ///         let primaryKeyValue = try Person.rowPrimaryKeyValue(db)
+    ///         let row = try Row.fetchOne(db, "SELECT * FROM persons")!
+    ///         row // <Row id: 1, name: "Arthur">
+    ///         primaryKeyValue(row) // 1
+    ///     }
+    ///
+    /// - precondition: the primary key has no more than one column.
+    /// - throws: A DatabaseError if table does not exist.
+    static func rowPrimaryKeyValue(_ db: Database) throws -> (Row) -> DatabaseValue {
+        if let primaryKey = try db.primaryKey(databaseTableName) {
+            let columns = primaryKey.columns
+            GRDBPrecondition(columns.count == 1, "Primary key is not defined on a single column")
+            let column = columns[0]
+            return { row in row.value(named: column) }
+        } else if selectsRowID {
+            return { row in row.value(Column.rowID) }
+        } else {
+            GRDBPreconditionFailure("Primary key is not defined on a single column")
         }
     }
     
