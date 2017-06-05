@@ -33,12 +33,12 @@ private struct DatabaseValueEncodingContainer : SingleValueEncodingContainer {
     /// - throws: `EncodingError.invalidValue` if the given value is invalid in the current context for this format.
     /// - precondition: May not be called after a previous `self.encode(_:)` call.
     func encode<T>(_ value: T) throws where T : Encodable {
-        if let dbv = DatabaseValue(value: value) {
-            encode(dbv)
+        if let dbValueConvertible = value as? DatabaseValueConvertible {
+            // Prefer DatabaseValueConvertible encoding over Decodable.
+            // This allows us to encode Date as String, for example.
+            encode(dbValueConvertible.databaseValue)
         } else {
-            throw EncodingError.invalidValue(
-                value,
-                EncodingError.Context(codingPath: [], debugDescription: "value does not adopt DatabaseValueConvertible"))
+            try value.encode(to: DatabaseValueEncoder(encode: encode))
         }
     }
 }

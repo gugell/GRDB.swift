@@ -1,4 +1,5 @@
 import XCTest
+import Foundation
 #if GRDBCIPHER
     import GRDBCipher
 #elseif GRDBCUSTOMSQLITE
@@ -46,5 +47,86 @@ class DatabaseValueConvertibleEncodableTests: GRDBTestCase {
         }
         let dbValue = Value.foo.databaseValue
         XCTAssertEqual(dbValue.storage.value as! String, "foo")
+    }
+}
+
+// MARK: - Foundation Codable Types
+
+extension DatabaseValueConvertibleEncodableTests {
+    func testDateProperty() {
+        struct Value : Encodable, DatabaseValueConvertible {
+            let date: Date
+            
+            func encode(to encoder: Encoder) throws {
+                var container = encoder.singleValueContainer()
+                try container.encode(date)
+            }
+            
+            static func fromDatabaseValue(_ databaseValue: DatabaseValue) -> Value? {
+                preconditionFailure("unused")
+            }
+            
+            // Infered, tested
+            // var databaseValue: DatabaseValue { ... }
+        }
+        
+        let value = Value(date: Date())
+        let dbValue = value.databaseValue
+        
+        // Date has a default Encodable implementation which encodes a Double.
+        // We expect here a String, because DatabaseValueConvertible has
+        // precedence over Encodable.
+        XCTAssert(dbValue.storage.value is String)
+        
+        let encodedDate = Date.fromDatabaseValue(dbValue)!
+        XCTAssert(abs(encodedDate.timeIntervalSince(value.date)) < 0.001)
+    }
+    
+    func testURLProperty() {
+        struct Value : Encodable, DatabaseValueConvertible {
+            let url: URL
+            
+            func encode(to encoder: Encoder) throws {
+                var container = encoder.singleValueContainer()
+                try container.encode(url)
+            }
+            
+            static func fromDatabaseValue(_ databaseValue: DatabaseValue) -> Value? {
+                preconditionFailure("unused")
+            }
+            
+            // Infered, tested
+            // var databaseValue: DatabaseValue { ... }
+        }
+        
+        let value = Value(url: URL(string: "https://github.com")!)
+        let dbValue = value.databaseValue
+        XCTAssert(dbValue.storage.value is String)
+        let encodedURL = URL.fromDatabaseValue(dbValue)!
+        XCTAssertEqual(encodedURL, value.url)
+    }
+    
+    func testUUIDProperty() {
+        struct Value : Encodable, DatabaseValueConvertible {
+            let uuid: UUID
+            
+            func encode(to encoder: Encoder) throws {
+                var container = encoder.singleValueContainer()
+                try container.encode(uuid)
+            }
+            
+            static func fromDatabaseValue(_ databaseValue: DatabaseValue) -> Value? {
+                preconditionFailure("unused")
+            }
+            
+            // Infered, tested
+            // var databaseValue: DatabaseValue { ... }
+        }
+        
+        let value = Value(uuid: UUID())
+        let dbValue = value.databaseValue
+        XCTAssert(dbValue.storage.value is Data)
+        let encodedUUID = UUID.fromDatabaseValue(dbValue)!
+        XCTAssertEqual(encodedUUID, value.uuid)
     }
 }
