@@ -116,6 +116,22 @@ public func == (lhs: SQLSpecificExpressible, rhs: SQLSpecificExpressible) -> SQL
     return SQLExpressionBinary(.equal, lhs.sqlExpression, rhs.sqlExpression)
 }
 
+/// TODO
+func == <T>(lhs: [T], rhs: RowValue) -> SQLExpression where T: SQLExpressible {
+    GRDBPrecondition(lhs.count == rhs.count, "non matching count")
+    if lhs.isEmpty {
+        return false.sqlExpression
+    }
+    return zip(lhs, rhs.dbValues).reduce(nil, { (expression: SQLExpression?, pair) in
+        let (column, dbValue) = pair
+        if let expression = expression {
+            return expression && (column == dbValue)
+        } else {
+            return (column == dbValue)
+        }
+    })!
+}
+
 /// An SQL expression that compares two expressions with the `<>` SQL operator.
 ///
 ///     // name <> 'Arthur'

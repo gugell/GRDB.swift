@@ -121,6 +121,11 @@ extension QueryInterfaceRequest {
         return filter(SQLExpressionLiteral(sql, arguments: arguments))
     }
     
+    /// TODO
+    public func filter(_ predicate: (Database) throws -> SQLExpressible) -> QueryInterfaceRequest<T> {
+        fatalError("not implemented")
+    }
+    
     /// A new QueryInterfaceRequest grouped according to *expressions*.
     public func group(_ expressions: SQLExpressible...) -> QueryInterfaceRequest<T> {
         return group(expressions)

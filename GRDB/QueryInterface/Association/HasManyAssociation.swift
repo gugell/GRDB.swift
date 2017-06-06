@@ -14,14 +14,13 @@ public struct HasManyAssociation<Left: TableMapping, Right: TableMapping> {
             let matchingForeignKeys = try db.foreignKeys(Right.databaseTableName)
                 .filter { $0.destinationTable.lowercased() == Left.databaseTableName.lowercased() }
             
-            // TODO: Think about the consequences of adding/removing foreign keys: can it break some existing code that runs correctly?
             switch matchingForeignKeys.count {
             case 0:
                 fatalError("Could not infer foreign key from \(Right.databaseTableName) to \(Left.databaseTableName)")
             case 1:
                 return matchingForeignKeys[0]
             default:
-                fatalError("Could not infer foreign key from \(Right.databaseTableName) to \(Left.databaseTableName)")
+                fatalError("Ambiguous foreign key from \(Right.databaseTableName) to \(Left.databaseTableName)")
             }
             
         case .rightColumns(let rightColumns):
@@ -30,9 +29,9 @@ public struct HasManyAssociation<Left: TableMapping, Right: TableMapping> {
                 .filter { $0.destinationTable.lowercased() == Left.databaseTableName.lowercased() }
                 .filter { Set($0.originColumns.lazy.map { $0.lowercased() }) == rightColumnSet }
             
-            // TODO: Think about the consequences of adding/removing foreign keys: can it break some existing code that runs correctly?
             switch matchingForeignKeys.count {
             case 0:
+                // Use primary key
                 let leftColumns: [String]
                 if let primaryKey = try db.primaryKey(Left.databaseTableName) {
                     leftColumns = primaryKey.columns
@@ -47,7 +46,7 @@ public struct HasManyAssociation<Left: TableMapping, Right: TableMapping> {
             case 1:
                 return matchingForeignKeys[0]
             default:
-                fatalError("Could not infer foreign key from \(Right.databaseTableName) to \(Left.databaseTableName)")
+                fatalError("Ambiguous foreign key from \(Right.databaseTableName) to \(Left.databaseTableName)")
             }
         }
     }
@@ -120,6 +119,17 @@ extension HasManyAssociation {
     
     public func limit(_ limit: Int, offset: Int? = nil) -> HasManyAssociation<Left, Right> {
         return updatingRightRequest { $0.limit(limit, offset: offset) }
+    }
+}
+
+extension HasManyAssociation where Left: MutablePersistable {
+    func belonging(to record: Left) -> QueryInterfaceRequest<Right> {
+        return rightRequest.filter { db in
+            let foreignKey = try self.foreignKey(db)
+            let container = PersistenceContainer(record)
+            let rowValue = RowValue(foreignKey.destinationColumns.map { container[caseInsensitive: $0]?.databaseValue ?? .null })
+            return foreignKey.destinationColumns == rowValue
+        }
     }
 }
 
