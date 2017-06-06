@@ -233,9 +233,9 @@ public final class SelectStatement : Statement {
         return Dictionary(keyValueSequence: self.columnNames.enumerated().map { ($1.lowercased(), $0) }.reversed())
     }()
     
-    /// Returns the index of the leftmost column named `name`, in a
+    /// The index of the leftmost column named `name`, in a
     /// case-insensitive way.
-    func index(ofColumn name: String) -> Int? {
+    public func index(ofColumn name: String) -> Int? {
         return columnIndexes[name.lowercased()]
     }
     
@@ -315,7 +315,8 @@ public final class SelectStatement : Statement {
 
 /// A cursor on a statement
 public final class DatabaseCursor<Element> : Cursor {
-    fileprivate let statement: SelectStatement
+    /// The statement iterated by the cursor
+    public let statement: SelectStatement
     private let sqliteStatement: SQLiteStatement
     private let element: () throws -> Element?
     private var done = false

@@ -1327,6 +1327,26 @@ extension Database {
         return try columnsForUniqueKey(Array(columns), in: tableName) != nil
     }
     
+    /// TODO
+    public func foreignKeys(_ tableName: String) throws -> [ForeignKeyInfo] {
+        // TODO: cache
+        // <Row id:0 seq:0 table:"parents" from:"parentId" to:"id" on_update:"NO ACTION" on_delete:"NO ACTION" match:"NONE">
+        var foreignKeys: [String: [(String, String)]] = [:]
+        for row in try Row.fetchAll(self, "PRAGMA foreign_key_list(\(tableName.quotedDatabaseIdentifier))") {
+            let table: String = row.value(atIndex: 2)
+            let from: String = row.value(atIndex: 3)
+            let to: String = row.value(atIndex: 4)
+            // TODO: take care of the `seq` column so that columns are well-ordered.
+            if let mapping = foreignKeys[table] {
+                foreignKeys[table] = mapping + [(from: from, to: to)]
+            } else {
+                foreignKeys[table] = [(from: from, to: to)]
+            }
+        }
+        return foreignKeys.map { (tableName, mapping) -> ForeignKeyInfo in
+            ForeignKeyInfo(tableName: tableName, mapping: mapping)
+        }
+    }
 }
 
 /// A column of a table
@@ -1464,6 +1484,11 @@ public struct PrimaryKeyInfo {
     }
 }
 
+/// TODO
+public struct ForeignKeyInfo {
+    let tableName: String
+    let mapping: [(from: String, to: String)]
+}
 
 // =========================================================================
 // MARK: - StatementCompilationObserver

@@ -234,33 +234,6 @@ extension TableMapping {
         }
     }
     
-    /// Returns a function that returns the primary key value of a row.
-    ///
-    /// If the table has no primary key, and selectsRowID is true, the primary
-    /// key is the "rowid" column.
-    ///
-    ///     try dbQueue.inDatabase { db in
-    ///         let primaryKeyValue = try Person.rowPrimaryKeyValue(db)
-    ///         let row = try Row.fetchOne(db, "SELECT * FROM persons")!
-    ///         row // <Row id: 1, name: "Arthur">
-    ///         primaryKeyValue(row) // 1
-    ///     }
-    ///
-    /// - precondition: the primary key has no more than one column.
-    /// - throws: A DatabaseError if table does not exist.
-    static func rowPrimaryKeyValue(_ db: Database) throws -> (Row) -> DatabaseValue {
-        if let primaryKey = try db.primaryKey(databaseTableName) {
-            let columns = primaryKey.columns
-            GRDBPrecondition(columns.count == 1, "Primary key is not defined on a single column")
-            let column = columns[0]
-            return { row in row.value(named: column) }
-        } else if selectsRowID {
-            return { row in row.value(Column.rowID) }
-        } else {
-            GRDBPreconditionFailure("Primary key is not defined on a single column")
-        }
-    }
-    
     /// Returns a function that returns true if and only if two rows have the
     /// same primary key and both primary keys contain at least one non-null
     /// value.
