@@ -122,17 +122,6 @@ extension HasManyAssociation {
     }
 }
 
-extension HasManyAssociation where Left: MutablePersistable {
-    public func belonging(to record: Left) -> QueryInterfaceRequest<Right> {
-        return rightRequest.filter { db in
-            let foreignKey = try self.foreignKey(db)
-            let container = PersistenceContainer(record)
-            let rowValue = RowValue(foreignKey.destinationColumns.map { container[caseInsensitive: $0]?.databaseValue ?? .null })
-            return foreignKey.originColumns.map { Column($0) } == rowValue
-        }
-    }
-}
-
 extension TableMapping {
     public static func hasMany<Right>(_ right: Right.Type) -> HasManyAssociation<Self, Right> where Right: TableMapping {
         return HasManyAssociation(foreignKeyDefinition: .inferred, rightRequest: Right.all())
@@ -144,4 +133,29 @@ extension TableMapping {
     
     // TODO: multiple right columns
     // TODO: fully qualified foreign key (left + right columns)
+}
+
+extension HasManyAssociation where Left: MutablePersistable {
+    public func belonging(to record: Left) -> QueryInterfaceRequest<Right> {
+        return rightRequest.filter { db in
+            let foreignKey = try self.foreignKey(db)
+            let container = PersistenceContainer(record)
+            let rowValue = RowValue(foreignKey.destinationColumns.map { container[caseInsensitive: $0]?.databaseValue ?? .null })
+            return foreignKey.originColumns.map { Column($0) } == rowValue
+        }
+    }
+}
+
+extension MutablePersistable {
+    public func fetchCursor<Fetched>(_ db: Database, _ association: HasManyAssociation<Self, Fetched>) throws -> DatabaseCursor<Fetched> where Fetched: TableMapping & RowConvertible {
+        return try association.belonging(to: self).fetchCursor(db)
+    }
+    
+    public func fetchAll<Fetched>(_ db: Database, _ association: HasManyAssociation<Self, Fetched>) throws -> [Fetched] where Fetched: TableMapping & RowConvertible {
+        return try association.belonging(to: self).fetchAll(db)
+    }
+    
+    public func fetchOne<Fetched>(_ db: Database, _ association: HasManyAssociation<Self, Fetched>) throws -> Fetched? where Fetched: TableMapping & RowConvertible {
+        return try association.belonging(to: self).fetchOne(db)
+    }
 }
