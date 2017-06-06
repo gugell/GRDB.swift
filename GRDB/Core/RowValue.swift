@@ -6,7 +6,12 @@
 /// SQLite ~> 3.15.0 https://sqlite.org/changes.html#version_3_15_0
 /// or iOS >= 10.3.1+ https://github.com/yapstudios/YapDatabase/wiki/SQLite-version-(bundled-with-OS)
 struct RowValue {
+    // TODO: hide this array
     let dbValues : [DatabaseValue]
+    
+    var count: Int {
+        return dbValues.count
+    }
     
     init(_ dbValues : [DatabaseValue]) {
         self.dbValues = dbValues
