@@ -9,7 +9,7 @@ import XCTest
 
 class HasManyAssociationIncludingTests: GRDBTestCase {
     
-    func testSimpleGraphRequest() throws {
+    func testSimplestRequest() throws {
         struct Child : TableMapping, RowConvertible {
             static let databaseTableName = "children"
             let id: Int64

@@ -123,7 +123,7 @@ extension HasManyAssociation {
 }
 
 extension HasManyAssociation where Left: MutablePersistable {
-    func belonging(to record: Left) -> QueryInterfaceRequest<Right> {
+    public func belonging(to record: Left) -> QueryInterfaceRequest<Right> {
         return rightRequest.filter { db in
             let foreignKey = try self.foreignKey(db)
             let container = PersistenceContainer(record)
