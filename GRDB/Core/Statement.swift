@@ -235,7 +235,7 @@ public final class SelectStatement : Statement {
     
     /// The index of the leftmost column named `name`, in a
     /// case-insensitive way.
-    public func index(ofColumn name: String) -> Int? {
+    func index(ofColumn name: String) -> Int? {
         return columnIndexes[name.lowercased()]
     }
     
@@ -315,8 +315,7 @@ public final class SelectStatement : Statement {
 
 /// A cursor on a statement
 public final class DatabaseCursor<Element> : Cursor {
-    /// The statement iterated by the cursor
-    public let statement: SelectStatement
+    fileprivate let statement: SelectStatement
     private let sqliteStatement: SQLiteStatement
     private let element: () throws -> Element?
     private var done = false
@@ -326,6 +325,12 @@ public final class DatabaseCursor<Element> : Cursor {
         self.statement = statement
         self.sqliteStatement = statement.sqliteStatement
         self.element = element
+    }
+    
+    /// The index of the leftmost column named `name`, in a
+    /// case-insensitive way.
+    func statementIndex(ofColumn column: String) -> Int? {
+        return statement.index(ofColumn: column)
     }
     
     /// Advances to the next element and returns it, or `nil` if no next element

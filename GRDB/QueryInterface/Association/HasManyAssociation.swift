@@ -213,9 +213,8 @@ extension GraphRequest where Left: RowConvertible, Right: RowConvertible {
         // SELECT * FROM left...
         do {
             let leftCursor = try Row.fetchCursor(db, leftRequest)
-            let leftStatement = leftCursor.statement
             let leftKeyIndexes = mapping.map { (_, leftColumn) -> Int in
-                if let index = leftStatement.index(ofColumn: leftColumn) {
+                if let index = leftCursor.statementIndex(ofColumn: leftColumn) {
                     return index    
                 } else {
                     fatalError("Column \(Left.databaseTableName).\(leftColumn) is not selected")
@@ -250,9 +249,8 @@ extension GraphRequest where Left: RowConvertible, Right: RowConvertible {
                 fatalError("not implemented")
             }
             let rightCursor = try Row.fetchCursor(db, rightRequest)
-            let rightStatement = rightCursor.statement
             let foreignKeyIndexes = mapping.map { (rightColumn, _) -> Int in
-                if let index = rightStatement.index(ofColumn: rightColumn) {
+                if let index = rightCursor.statementIndex(ofColumn: rightColumn) {
                     return index
                 } else {
                     fatalError("Column \(Right.databaseTableName).\(rightColumn) is not selected")
