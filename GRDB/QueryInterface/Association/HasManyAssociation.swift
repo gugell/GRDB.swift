@@ -1,10 +1,38 @@
-public struct HasManyAssociation<Left, Right> {
+public struct HasManyAssociation<Left: TableMapping, Right: TableMapping> {
     enum Mapping {
         case inferred
         case rightColumns([String])
     }
     let mapping: Mapping
     var rightRequest: QueryInterfaceRequest<Right>
+    
+    // from: right column, to: left column
+    func foreignKeyMapping(_ db: Database) throws -> [(from: String, to: String)] {
+        switch mapping {
+        case .inferred:
+            let matchingForeignKeys = try db.foreignKeys(Right.databaseTableName)
+                .filter { $0.tableName.lowercased() == Left.databaseTableName.lowercased() }
+            switch matchingForeignKeys.count {
+            case 0:
+                fatalError("Table \(Right.databaseTableName) has no foreign key to table \(Left.databaseTableName)")
+            case 1:
+                return matchingForeignKeys[0].mapping
+            default:
+                fatalError("Table \(Right.databaseTableName) has several foreign keys to table \(Left.databaseTableName)")
+            }
+        case .rightColumns(let rightColumns):
+            let leftColumns: [String]
+            if let primaryKey = try db.primaryKey(Left.databaseTableName) {
+                leftColumns = primaryKey.columns
+            } else {
+                leftColumns = [Column.rowID.name]
+            }
+            guard leftColumns.count == rightColumns.count else {
+                fatalError("Number of columns don't match")
+            }
+            return zip(rightColumns, leftColumns).map { (from: $0, to: $1) }
+        }
+    }
 }
 
 extension HasManyAssociation {
@@ -87,19 +115,19 @@ extension TableMapping {
     }
 }
 
-extension QueryInterfaceRequest {
-    public func including<Right>(_ association: HasManyAssociation<Fetched, Right>) -> GraphRequest<Fetched, Right> {
+extension QueryInterfaceRequest where Fetched: TableMapping {
+    public func including<Right>(_ association: HasManyAssociation<Fetched, Right>) -> GraphRequest<Fetched, Right> where Right: TableMapping {
         return GraphRequest(leftRequest: self, association: association)
     }
 }
 
 extension TableMapping {
-    public static func including<Right>(_ association: HasManyAssociation<Self, Right>) -> GraphRequest<Self, Right> {
+    public static func including<Right>(_ association: HasManyAssociation<Self, Right>) -> GraphRequest<Self, Right> where Right: TableMapping {
         return all().including(association)
     }
 }
 
-public struct GraphRequest<Left, Right> {
+public struct GraphRequest<Left: TableMapping, Right: TableMapping> {
     var leftRequest: QueryInterfaceRequest<Left>
     let association: HasManyAssociation<Left, Right>
 }
@@ -174,46 +202,22 @@ extension GraphRequest {
     }
 }
 
-extension GraphRequest where Left: RowConvertible & TableMapping, Right: RowConvertible & TableMapping {
+extension GraphRequest where Left: RowConvertible, Right: RowConvertible {
     public func fetchAll(_ db: Database) throws -> [(Left, [Right])] {
-        let mapping: [(from: String, to: String)]   // from: right column, to: left column
-        switch association.mapping {
-        case .inferred:
-            let matchingForeignKeys = try db.foreignKeys(Right.databaseTableName)
-                .filter { $0.tableName.lowercased() == Left.databaseTableName.lowercased() }
-            switch matchingForeignKeys.count {
-            case 0:
-                fatalError("Table \(Right.databaseTableName) has no foreign key to table \(Left.databaseTableName)")
-            case 1:
-                mapping = matchingForeignKeys[0].mapping
-            default:
-                fatalError("Table \(Right.databaseTableName) has several foreign keys to table \(Left.databaseTableName)")
-            }
-        case .rightColumns(let rightColumns):
-            let leftColumns: [String]
-            if let primaryKey = try db.primaryKey(Left.databaseTableName) {
-                leftColumns = primaryKey.columns
-            } else {
-                leftColumns = [Column.rowID.name]
-            }
-            guard leftColumns.count == rightColumns.count else {
-                fatalError("Number of columns don't match")
-            }
-            mapping = zip(rightColumns, leftColumns).map { (from: $0, to: $1) }
-        }
-        
+        let mapping = try association.foreignKeyMapping(db)
         var result: [(Left, [Right])] = []
         var leftKeys: [DatabaseValues] = []
         var resultIndexes : [DatabaseValues: Int] = [:]
         
+        // SELECT * FROM left...
         do {
             let leftCursor = try Row.fetchCursor(db, leftRequest)
             let leftStatement = leftCursor.statement
             let leftKeyIndexes = mapping.map { (_, leftColumn) -> Int in
                 if let index = leftStatement.index(ofColumn: leftColumn) {
-                    return index
+                    return index    
                 } else {
-                    fatalError("Primary key of table \(Left.databaseTableName) is not selected")
+                    fatalError("Column \(Left.databaseTableName).\(leftColumn) is not selected")
                 }
             }
             let enumeratedCursor = leftCursor.enumerated()
@@ -229,9 +233,13 @@ extension GraphRequest where Left: RowConvertible & TableMapping, Right: RowConv
             return result
         }
         
+        // SELECT * FROM right WHERE leftId IN (...)
         do {
             // TODO: pick another technique when association.rightRequest has
-            // a group/having/limit clause.
+            // a distinct, group/having/limit clause.
+            //
+            // TODO: Raw SQL snippets may be used to involve left and right columns at
+            // the same time: consider joins.
             let rightRequest: QueryInterfaceRequest<Right>
             if mapping.count == 1 {
                 let leftKeyValues = leftKeys.lazy.map { $0.dbValues[0] }
@@ -246,7 +254,7 @@ extension GraphRequest where Left: RowConvertible & TableMapping, Right: RowConv
                 if let index = rightStatement.index(ofColumn: rightColumn) {
                     return index
                 } else {
-                    fatalError("Foreign key of table \(Right.databaseTableName) is not selected")
+                    fatalError("Column \(Right.databaseTableName).\(rightColumn) is not selected")
                 }
             }
             while let rightRow = try rightCursor.next() {
@@ -261,6 +269,7 @@ extension GraphRequest where Left: RowConvertible & TableMapping, Right: RowConv
     }
 }
 
+// A hashable array of database values.
 private struct DatabaseValues : Hashable {
     let dbValues : [DatabaseValue]
     
