@@ -236,7 +236,7 @@ extension GraphRequest where Left: RowConvertible, Right: RowConvertible {
         // SELECT * FROM right WHERE leftId IN (...)
         do {
             // TODO: pick another technique when association.rightRequest has
-            // is distinct, or has a group/having/limit clause.
+            // distinct/group/having/limit clause.
             //
             // TODO: Raw SQL snippets may be used to involve left and right columns at
             // the same time: consider joins.
