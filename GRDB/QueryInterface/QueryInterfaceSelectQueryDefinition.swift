@@ -4,7 +4,7 @@ struct QueryInterfaceSelectQueryDefinition {
     var selection: [SQLSelectable]
     var isDistinct: Bool
     var source: SQLSource?
-    var whereExpression: SQLExpression?
+    var whereExpression: ((Database) throws -> SQLExpression)?
     var groupByExpressions: [SQLExpression]
     var orderings: [SQLOrderingTerm]
     var isReversed: Bool
@@ -15,7 +15,7 @@ struct QueryInterfaceSelectQueryDefinition {
         select selection: [SQLSelectable],
         isDistinct: Bool = false,
         from source: SQLSource? = nil,
-        filter whereExpression: SQLExpression? = nil,
+        filter whereExpression: ((Database) throws -> SQLExpression)? = nil,
         groupBy groupByExpressions: [SQLExpression] = [],
         orderBy orderings: [SQLOrderingTerm] = [],
         isReversed: Bool = false,
@@ -33,7 +33,7 @@ struct QueryInterfaceSelectQueryDefinition {
         self.limit = limit
     }
     
-    func sql(_ arguments: inout StatementArguments?) -> String {
+    func sql(_ db: Database, _ arguments: inout StatementArguments?) throws -> String {
         var sql = "SELECT"
         
         if isDistinct {
@@ -44,10 +44,10 @@ struct QueryInterfaceSelectQueryDefinition {
         sql += " " + selection.map { $0.resultColumnSQL(&arguments) }.joined(separator: ", ")
         
         if let source = source {
-            sql += " FROM " + source.sourceSQL(&arguments)
+            sql += try " FROM " + source.sourceSQL(db, &arguments)
         }
         
-        if let whereExpression = whereExpression {
+        if let whereExpression = try self.whereExpression?(db) {
             sql += " WHERE " + whereExpression.expressionSQL(&arguments)
         }
         
@@ -152,10 +152,10 @@ struct QueryInterfaceSelectQueryDefinition {
         var arguments: StatementArguments? = StatementArguments()
         
         if let source = source {
-            sql += " FROM " + source.sourceSQL(&arguments)
+            sql += try " FROM " + source.sourceSQL(db, &arguments)
         }
         
-        if let whereExpression = whereExpression {
+        if let whereExpression = try self.whereExpression?(db) {
             sql += " WHERE " + whereExpression.expressionSQL(&arguments)
         }
         
@@ -184,7 +184,7 @@ indirect enum SQLSource {
     case table(name: String, alias: String?)
     case query(query: QueryInterfaceSelectQueryDefinition, alias: String?)
     
-    func sourceSQL(_ arguments: inout StatementArguments?) -> String {
+    func sourceSQL(_ db: Database, _ arguments: inout StatementArguments?) throws -> String {
         switch self {
         case .table(let table, let alias):
             if let alias = alias {
@@ -194,9 +194,9 @@ indirect enum SQLSource {
             }
         case .query(let query, let alias):
             if let alias = alias {
-                return "(" + query.sql(&arguments) + ") AS " + alias.quotedDatabaseIdentifier
+                return try "(" + query.sql(db, &arguments) + ") AS " + alias.quotedDatabaseIdentifier
             } else {
-                return "(" + query.sql(&arguments) + ")"
+                return try "(" + query.sql(db, &arguments) + ")"
             }
         }
     }

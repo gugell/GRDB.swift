@@ -21,8 +21,8 @@ extension QueryInterfaceRequest : SQLSelectQuery {
     /// # Low Level Query Interface
     ///
     /// See SQLSelectQuery.selectQuerySQL(_)
-    public func selectQuerySQL(_ arguments: inout StatementArguments?) -> String {
-        return query.selectQuerySQL(&arguments)
+    public func selectQuerySQL(_ db: Database, _ arguments: inout StatementArguments?) throws -> String {
+        return try query.selectQuerySQL(db, &arguments)
     }
 }
 
@@ -102,13 +102,7 @@ extension QueryInterfaceRequest {
     ///     var request = Person.all()
     ///     request = request.filter(Column("email") == "arthur@example.com")
     public func filter(_ predicate: SQLExpressible) -> QueryInterfaceRequest<T> {
-        var query = self.query
-        if let whereExpression = query.whereExpression {
-            query.whereExpression = whereExpression && predicate.sqlExpression
-        } else {
-            query.whereExpression = predicate.sqlExpression
-        }
-        return QueryInterfaceRequest(query: query)
+        return filter { _ in predicate }
     }
     
     /// A new QueryInterfaceRequest with the provided *predicate* added to the
@@ -118,12 +112,22 @@ extension QueryInterfaceRequest {
     ///     var request = Person.all()
     ///     request = request.filter(sql: "email = ?", arguments: ["arthur@example.com"])
     public func filter(sql: String, arguments: StatementArguments? = nil) -> QueryInterfaceRequest<T> {
-        return filter(SQLExpressionLiteral(sql, arguments: arguments))
+        return filter { _ in SQLExpressionLiteral(sql, arguments: arguments) }
     }
     
     /// TODO
-    public func filter(_ predicate: (Database) throws -> SQLExpressible) -> QueryInterfaceRequest<T> {
-        fatalError("not implemented")
+    public func filter(_ predicate: @escaping (Database) throws -> SQLExpressible) -> QueryInterfaceRequest<T> {
+        var query = self.query
+        if let whereExpression = query.whereExpression {
+            query.whereExpression = { db in
+                try whereExpression(db) && predicate(db)
+            }
+        } else {
+            query.whereExpression = { db in
+                try predicate(db).sqlExpression
+            }
+        }
+        return QueryInterfaceRequest(query: query)
     }
     
     /// A new QueryInterfaceRequest grouped according to *expressions*.

@@ -24,7 +24,7 @@ public protocol SQLSelectQuery : Request {
     ///
     /// When the arguments parameter is not nil, then values may be replaced by
     /// `?` or colon-prefixed tokens, and fed into arguments.
-    func selectQuerySQL(_ arguments: inout StatementArguments?) -> String
+    func selectQuerySQL(_ db: Database, _ arguments: inout StatementArguments?) throws -> String
 }
 
 
@@ -36,7 +36,7 @@ extension SQLSelectQuery {
     /// executed, and an eventual row adapter.
     public func prepare(_ db: Database) throws -> (SelectStatement, RowAdapter?) {
         var arguments: StatementArguments? = StatementArguments()
-        let sql = self.selectQuerySQL(&arguments)
+        let sql = try selectQuerySQL(db, &arguments)
         let statement = try db.makeSelectStatement(sql)
         try statement.setArgumentsWithValidation(arguments!)
         return (statement, nil)
@@ -55,7 +55,7 @@ extension QueryInterfaceSelectQueryDefinition : SQLSelectQuery {
     /// # Low Level Query Interface
     ///
     /// See SQLSelectQuery.selectQuerySQL(_:arguments:)
-    func selectQuerySQL(_ arguments: inout StatementArguments?) -> String {
-        return sql(&arguments)
+    func selectQuerySQL(_ db: Database, _ arguments: inout StatementArguments?) throws -> String {
+        return try sql(db, &arguments)
     }
 }
