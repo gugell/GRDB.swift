@@ -9,6 +9,8 @@ import XCTest
 
 class HasManyAssociationBelongingToTests: GRDBTestCase {
     
+    // TODO: tests for left implicit row id, and compound keys
+    
     func testBelongingTo() throws {
         struct Child : TableMapping, RowConvertible {
             static let databaseTableName = "children"
@@ -84,6 +86,9 @@ class HasManyAssociationBelongingToTests: GRDBTestCase {
             do {
                 let request = Parent.children.belonging(to: a)
                 let children = try request.fetchAll(db)
+                
+                XCTAssertEqual(lastSQLQuery, "SELECT * FROM \"children\" WHERE (\"parentId\" = 1)")
+                
                 let expectedChildren = [
                     Child(row: ["id": 1, "parentId": a.id, "name": "a"]),
                     Child(row: ["id": 2, "parentId": a.id, "name": "b"]),
@@ -94,6 +99,9 @@ class HasManyAssociationBelongingToTests: GRDBTestCase {
             do {
                 let request = Parent.children.belonging(to: b)
                 let children = try request.fetchAll(db)
+                
+                XCTAssertEqual(lastSQLQuery, "SELECT * FROM \"children\" WHERE (\"parentId\" = 2)")
+                
                 let expectedChildren = [
                     Child(row: ["id": 3, "parentId": b.id, "name": "a"]),
                     Child(row: ["id": 4, "parentId": b.id, "name": "b"]),
@@ -104,6 +112,9 @@ class HasManyAssociationBelongingToTests: GRDBTestCase {
             do {
                 let request = Parent.children.belonging(to: a).filter(Column("name") == "a")
                 let children = try request.fetchAll(db)
+                
+                XCTAssertEqual(lastSQLQuery, "SELECT * FROM \"children\" WHERE ((\"parentId\" = 1) AND (\"name\" = 'a'))")
+                
                 let expectedChildren = [
                     Child(row: ["id": 1, "parentId": a.id, "name": "a"]),
                     ]
@@ -113,6 +124,9 @@ class HasManyAssociationBelongingToTests: GRDBTestCase {
             do {
                 let request = Parent.children.belonging(to: a).order(Column("name").desc)
                 let children = try request.fetchAll(db)
+                
+                XCTAssertEqual(lastSQLQuery, "SELECT * FROM \"children\" WHERE (\"parentId\" = 1) ORDER BY \"name\" DESC")
+                
                 let expectedChildren = [
                     Child(row: ["id": 2, "parentId": a.id, "name": "b"]),
                     Child(row: ["id": 1, "parentId": a.id, "name": "a"]),

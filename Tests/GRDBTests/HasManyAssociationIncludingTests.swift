@@ -9,6 +9,8 @@ import XCTest
 
 class HasManyAssociationIncludingTests: GRDBTestCase {
     
+    // TODO: tests for left implicit row id, and compound keys
+    
     func testSimplestRequest() throws {
         struct Child : TableMapping, RowConvertible {
             static let databaseTableName = "children"

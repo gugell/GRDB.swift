@@ -9,7 +9,7 @@ import XCTest
 
 class HasManyAssociationForeignKeyTests: GRDBTestCase {
     
-    // TODO: tests for left implicit row id, left compound primary key, and missing foreign key
+    // TODO: tests for left implicit row id, compound keys, and missing foreign key
 
     func testInferredForeignKey() throws {
         struct Child : TableMapping, RowConvertible {

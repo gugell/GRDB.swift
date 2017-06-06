@@ -128,7 +128,7 @@ extension HasManyAssociation where Left: MutablePersistable {
             let foreignKey = try self.foreignKey(db)
             let container = PersistenceContainer(record)
             let rowValue = RowValue(foreignKey.destinationColumns.map { container[caseInsensitive: $0]?.databaseValue ?? .null })
-            return foreignKey.destinationColumns == rowValue
+            return foreignKey.originColumns.map { Column($0) } == rowValue
         }
     }
 }
