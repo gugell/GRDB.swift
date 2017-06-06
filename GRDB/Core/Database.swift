@@ -1330,21 +1330,29 @@ extension Database {
     /// TODO
     public func foreignKeys(_ tableName: String) throws -> [ForeignKeyInfo] {
         // TODO: cache
-        // <Row id:0 seq:0 table:"parents" from:"parentId" to:"id" on_update:"NO ACTION" on_delete:"NO ACTION" match:"NONE">
-        var foreignKeys: [String: [(String, String)]] = [:]
+        
+        // [destinationTable: [(origin: originColumn, destination: destinationColumn, seq: order in the foreign key)]]
+        var foreignKeys: [String: [(origin: String, destination: String, seq: Int)]] = [:]
+        
         for row in try Row.fetchAll(self, "PRAGMA foreign_key_list(\(tableName.quotedDatabaseIdentifier))") {
+            // row = <Row id:0 seq:0 table:"parents" from:"parentId" to:"id" on_update:"..." on_delete:"..." match:"...">
+            let seq: Int = row.value(atIndex: 1)
             let table: String = row.value(atIndex: 2)
-            let from: String = row.value(atIndex: 3)
-            let to: String = row.value(atIndex: 4)
-            // TODO: take care of the `seq` column so that columns are well-ordered.
-            if let mapping = foreignKeys[table] {
-                foreignKeys[table] = mapping + [(from: from, to: to)]
+            let origin: String = row.value(atIndex: 3)
+            let destination: String = row.value(atIndex: 4)
+            
+            if let columnMapping = foreignKeys[table] {
+                foreignKeys[table] = columnMapping + [(origin: origin, destination: destination, seq: seq)]
             } else {
-                foreignKeys[table] = [(from: from, to: to)]
+                foreignKeys[table] = [(origin: origin, destination: destination, seq: seq)]
             }
         }
-        return foreignKeys.map { (tableName, mapping) -> ForeignKeyInfo in
-            ForeignKeyInfo(tableName: tableName, mapping: mapping)
+        return foreignKeys.map { (destinationTable, columnMapping) -> ForeignKeyInfo in
+            ForeignKeyInfo(
+                destinationTable: destinationTable,
+                columnMapping: columnMapping
+                    .sorted { $0.seq < $1.seq }
+                    .map { (origin: $0.origin, destination: $0 .destination) })
         }
     }
 }
@@ -1486,8 +1494,21 @@ public struct PrimaryKeyInfo {
 
 /// TODO
 public struct ForeignKeyInfo {
-    let tableName: String
-    let mapping: [(from: String, to: String)]
+    /// TODO
+    public let destinationTable: String
+    
+    /// TODO
+    public let columnMapping: [(origin: String, destination: String)]
+    
+    /// TODO
+    public var originColumns: [String] {
+        return columnMapping.map { $0.origin }
+    }
+    
+    /// TODO
+    public var destinationColumns: [String] {
+        return columnMapping.map { $0.destination }
+    }
 }
 
 // =========================================================================

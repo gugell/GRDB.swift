@@ -1,44 +1,61 @@
 public struct HasManyAssociation<Left: TableMapping, Right: TableMapping> {
-    enum Mapping {
+    enum ForeignKeyDefinition {
         case inferred
         case rightColumns([String])
+        // TODO: fully qualified foreign key
     }
-    let mapping: Mapping
+    
+    let foreignKeyDefinition: ForeignKeyDefinition
     var rightRequest: QueryInterfaceRequest<Right>
     
-    // from: right column, to: left column
-    func foreignKeyMapping(_ db: Database) throws -> [(from: String, to: String)] {
-        switch mapping {
+    func foreignKey(_ db: Database) throws -> ForeignKeyInfo {
+        switch foreignKeyDefinition {
         case .inferred:
             let matchingForeignKeys = try db.foreignKeys(Right.databaseTableName)
-                .filter { $0.tableName.lowercased() == Left.databaseTableName.lowercased() }
+                .filter { $0.destinationTable.lowercased() == Left.databaseTableName.lowercased() }
+            
+            // TODO: Think about the consequences of adding/removing foreign keys: can it break some existing code that runs correctly?
             switch matchingForeignKeys.count {
             case 0:
-                fatalError("Table \(Right.databaseTableName) has no foreign key to table \(Left.databaseTableName)")
+                fatalError("Could not infer foreign key from \(Right.databaseTableName) to \(Left.databaseTableName)")
             case 1:
-                return matchingForeignKeys[0].mapping
+                return matchingForeignKeys[0]
             default:
-                fatalError("Table \(Right.databaseTableName) has several foreign keys to table \(Left.databaseTableName)")
+                fatalError("Could not infer foreign key from \(Right.databaseTableName) to \(Left.databaseTableName)")
             }
+            
         case .rightColumns(let rightColumns):
-            // TODO: look for matching foreign key before defaulting to left primary key
-            let leftColumns: [String]
-            if let primaryKey = try db.primaryKey(Left.databaseTableName) {
-                leftColumns = primaryKey.columns
-            } else {
-                leftColumns = [Column.rowID.name]
+            let rightColumnSet = Set(rightColumns.lazy.map { $0.lowercased() })
+            let matchingForeignKeys = try db.foreignKeys(Right.databaseTableName)
+                .filter { $0.destinationTable.lowercased() == Left.databaseTableName.lowercased() }
+                .filter { Set($0.originColumns.lazy.map { $0.lowercased() }) == rightColumnSet }
+            
+            // TODO: Think about the consequences of adding/removing foreign keys: can it break some existing code that runs correctly?
+            switch matchingForeignKeys.count {
+            case 0:
+                let leftColumns: [String]
+                if let primaryKey = try db.primaryKey(Left.databaseTableName) {
+                    leftColumns = primaryKey.columns
+                } else {
+                    leftColumns = [Column.rowID.name]
+                }
+                guard leftColumns.count == rightColumns.count else {
+                    fatalError("Number of columns don't match")
+                }
+                let columnMapping = zip(rightColumns, leftColumns).map { (origin: $0, destination: $1) }
+                return ForeignKeyInfo(destinationTable: Left.databaseTableName, columnMapping: columnMapping)
+            case 1:
+                return matchingForeignKeys[0]
+            default:
+                fatalError("Could not infer foreign key from \(Right.databaseTableName) to \(Left.databaseTableName)")
             }
-            guard leftColumns.count == rightColumns.count else {
-                fatalError("Number of columns don't match")
-            }
-            return zip(rightColumns, leftColumns).map { (from: $0, to: $1) }
         }
     }
 }
 
 extension HasManyAssociation {
-    private func updatingRightRequest(_ closure: (QueryInterfaceRequest<Right>) -> QueryInterfaceRequest<Right>) -> HasManyAssociation<Left, Right> {
-        return HasManyAssociation(mapping: mapping, rightRequest: closure(self.rightRequest))
+    private func updatingRightRequest(_ transform: (QueryInterfaceRequest<Right>) -> QueryInterfaceRequest<Right>) -> HasManyAssociation<Left, Right> {
+        return HasManyAssociation(foreignKeyDefinition: foreignKeyDefinition, rightRequest: transform(self.rightRequest))
     }
     
     public func select(_ selection: SQLSelectable...) -> HasManyAssociation<Left, Right> {
@@ -108,10 +125,13 @@ extension HasManyAssociation {
 
 extension TableMapping {
     public static func hasMany<Right>(_ right: Right.Type) -> HasManyAssociation<Self, Right> where Right: TableMapping {
-        return HasManyAssociation(mapping: .inferred, rightRequest: Right.all())
+        return HasManyAssociation(foreignKeyDefinition: .inferred, rightRequest: Right.all())
     }
     
     public static func hasMany<Right>(_ right: Right.Type, from column: String) -> HasManyAssociation<Self, Right> where Right: TableMapping {
-        return HasManyAssociation(mapping: .rightColumns([column]), rightRequest: Right.all())
+        return HasManyAssociation(foreignKeyDefinition: .rightColumns([column]), rightRequest: Right.all())
     }
+    
+    // TODO: multiple right columns
+    // TODO: fully qualified foreign key (left + right columns)
 }
