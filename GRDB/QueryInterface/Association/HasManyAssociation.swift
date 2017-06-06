@@ -21,6 +21,7 @@ public struct HasManyAssociation<Left: TableMapping, Right: TableMapping> {
                 fatalError("Table \(Right.databaseTableName) has several foreign keys to table \(Left.databaseTableName)")
             }
         case .rightColumns(let rightColumns):
+            // TODO: look for matching foreign key before defaulting to left primary key
             let leftColumns: [String]
             if let primaryKey = try db.primaryKey(Left.databaseTableName) {
                 leftColumns = primaryKey.columns
@@ -206,8 +207,8 @@ extension GraphRequest where Left: RowConvertible, Right: RowConvertible {
     public func fetchAll(_ db: Database) throws -> [(Left, [Right])] {
         let mapping = try association.foreignKeyMapping(db)
         var result: [(Left, [Right])] = []
-        var leftKeys: [DatabaseValues] = []
-        var resultIndexes : [DatabaseValues: Int] = [:]
+        var leftKeys: [RowValue] = []
+        var resultIndexes : [RowValue: Int] = [:]
         
         // SELECT * FROM left...
         do {
@@ -222,7 +223,7 @@ extension GraphRequest where Left: RowConvertible, Right: RowConvertible {
             }
             let enumeratedCursor = leftCursor.enumerated()
             while let (leftIndex, leftRow) = try enumeratedCursor.next() {
-                let leftKey = DatabaseValues(dbValues: leftKeyIndexes.map { leftRow.value(atIndex: $0) })
+                let leftKey = RowValue(leftKeyIndexes.map { leftRow.value(atIndex: $0) })
                 leftKeys.append(leftKey)
                 resultIndexes[leftKey] = leftIndex
                 result.append((Left(row: leftRow), []))
@@ -236,7 +237,7 @@ extension GraphRequest where Left: RowConvertible, Right: RowConvertible {
         // SELECT * FROM right WHERE leftId IN (...)
         do {
             // TODO: pick another technique when association.rightRequest has
-            // a distinct, group/having/limit clause.
+            // is distinct, or has a group/having/limit clause.
             //
             // TODO: Raw SQL snippets may be used to involve left and right columns at
             // the same time: consider joins.
@@ -259,7 +260,7 @@ extension GraphRequest where Left: RowConvertible, Right: RowConvertible {
             }
             while let rightRow = try rightCursor.next() {
                 let right = Right(row: rightRow)
-                let foreignKey = DatabaseValues(dbValues: foreignKeyIndexes.map { rightRow.value(atIndex: $0) })
+                let foreignKey = RowValue(foreignKeyIndexes.map { rightRow.value(atIndex: $0) })
                 let index = resultIndexes[foreignKey]!
                 result[index].1.append(right)
             }
@@ -269,15 +270,27 @@ extension GraphRequest where Left: RowConvertible, Right: RowConvertible {
     }
 }
 
-// A hashable array of database values.
-private struct DatabaseValues : Hashable {
+/// An array of database values, also called "row value"
+///
+/// See https://sqlite.org/rowvalue.html
+///
+/// TODO: consider enhanced support for this type when
+/// SQLite ~> 3.15.0 https://sqlite.org/changes.html#version_3_15_0
+/// or iOS >= 10.3.1+ https://github.com/yapstudios/YapDatabase/wiki/SQLite-version-(bundled-with-OS)
+private struct RowValue {
     let dbValues : [DatabaseValue]
     
+    init(_ dbValues : [DatabaseValue]) {
+        self.dbValues = dbValues
+    }
+}
+
+extension RowValue : Hashable {
     var hashValue: Int {
         return dbValues.reduce(0) { $0 ^ $1.hashValue }
     }
     
-    static func == (lhs: DatabaseValues, rhs: DatabaseValues) -> Bool {
+    static func == (lhs: RowValue, rhs: RowValue) -> Bool {
         if lhs.dbValues.count != rhs.dbValues.count { return false }
         for (lhs, rhs) in zip(lhs.dbValues, rhs.dbValues) {
             if lhs != rhs { return false }
