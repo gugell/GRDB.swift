@@ -121,4 +121,8 @@ extension SQLExpressible where Self: SQLSelectable {
     public func count(distinct: Bool) -> SQLCount? {
         return sqlExpression.count(distinct: distinct)
     }
+    
+    public func numberOfColumns(_ db: Database) throws -> Int {
+        return 1
+    }
 }

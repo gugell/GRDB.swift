@@ -91,7 +91,7 @@ struct QueryInterfaceSelectQueryDefinition {
     }
     
     func numberOfColumns(_ db: Database) throws -> Int {
-        fatalError("not implemented")
+        return try selection.reduce(0) { try $0 + $1.numberOfColumns(db) }
     }
     
     func qualified(by qualifier: SQLSourceQualifier) -> QueryInterfaceSelectQueryDefinition {
@@ -211,15 +211,30 @@ indirect enum SQLSource {
             sql += try leftSource.sourceSQL(db, &arguments)
             sql += " JOIN "
             sql += try rightSource.sourceSQL(db, &arguments)
+            if !foreignKey.columnMapping.isEmpty {
+                sql += " ON "
+                
+                let leftQualifier = leftSource.qualifier!
+                let rightQualifier = rightSource.qualifier!
+                
+                sql += foreignKey.columnMapping
+                    .map { rightColumn, leftColumn in
+                        let leftColumn = Column(leftColumn).qualified(by: leftQualifier)
+                        let rightColumn = Column(rightColumn).qualified(by: rightQualifier)
+                        return (rightColumn == leftColumn).sql }
+                    .joined(separator: " AND ")
+                
+                return sql
+            }
             fatalError("not implemented")
         }
     }
     
     func qualified(by qualifier: SQLSourceQualifier) -> SQLSource {
         switch self {
-        case .table(let name, let oldQualifier):
+        case .table(let tableName, let oldQualifier):
             if oldQualifier == nil {
-                return .table(name: name, qualifier: qualifier)
+                return .table(name: tableName, qualifier: SQLSourceQualifier(tableName: tableName, alias: qualifier.alias))
             } else {
                 return self
             }
@@ -236,9 +251,16 @@ indirect enum SQLSource {
 }
 
 public class SQLSourceQualifier {
+    let tableName: String?
     let alias: String?
     
     init(alias: String?) {
+        self.tableName = nil
+        self.alias = alias
+    }
+    
+    init(tableName: String, alias: String?) {
+        self.tableName = tableName
         self.alias = alias
     }
 }

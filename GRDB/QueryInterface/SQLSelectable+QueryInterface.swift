@@ -23,6 +23,13 @@ struct SQLStar : SQLSelectable {
         return .star
     }
     
+    func numberOfColumns(_ db: Database) throws -> Int {
+        guard let tableName = qualifier?.tableName else {
+            fatalError("unqualified: can't count number of columns")
+        }
+        return try db.columnCount(in: tableName)
+    }
+    
     func qualified(by qualifier: SQLSourceQualifier) -> SQLStar {
         if self.qualifier == nil {
             return SQLStar(qualifier: qualifier)
@@ -58,5 +65,9 @@ struct SQLAliasedExpression : SQLSelectable {
     
     func qualified(by qualifier: SQLSourceQualifier) -> SQLAliasedExpression {
         return SQLAliasedExpression(expression.qualified(by: qualifier), alias: alias)
+    }
+    
+    func numberOfColumns(_ db: Database) throws -> Int {
+        return 1
     }
 }
