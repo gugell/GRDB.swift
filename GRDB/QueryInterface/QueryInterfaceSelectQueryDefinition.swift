@@ -84,7 +84,11 @@ struct QueryInterfaceSelectQueryDefinition {
         // Join sources
         guard let leftSource = leftQuery.source else { fatalError("Join requires a left source") }
         guard let rightSource = rightQuery.source else { fatalError("Join requires a right source") }
-        let joinedSource = SQLSource.joined(op: op, left: leftSource, right: rightSource, foreignKey: foreignKey)
+        let joinedSource = SQLSource.joined(
+            op: op,
+            leftSource: leftSource,
+            rightQuery: JoinedRightQuery(source: rightSource, onExpression: rightQuery.whereExpression),
+            foreignKey: foreignKey)
         
         // TODO: take care of distinct
         // TODO: take care of order/isReversed
@@ -267,10 +271,15 @@ enum SQLJoinOperator : String {
     case leftJoin = "LEFT JOIN"
 }
 
+struct JoinedRightQuery {
+    let source: SQLSource
+    let onExpression: ((Database) throws -> SQLExpression)?
+}
+
 indirect enum SQLSource {
     case table(name: String, qualifier: SQLSourceQualifier?)
     case query(query: QueryInterfaceSelectQueryDefinition, qualifier: SQLSourceQualifier?)
-    case joined(op: SQLJoinOperator, left: SQLSource, right: SQLSource, foreignKey: ForeignKeyInfo)
+    case joined(op: SQLJoinOperator, leftSource: SQLSource, rightQuery: JoinedRightQuery, foreignKey: ForeignKeyInfo)
     
     var qualifier: SQLSourceQualifier? {
         switch self {
@@ -294,28 +303,30 @@ indirect enum SQLSource {
             } else {
                 return try "(" + query.sql(db, &arguments) + ")"
             }
-        case .joined(let op, let leftSource, let rightSource, let foreignKey):
+        case .joined(let op, let leftSource, let rightQuery, let foreignKey):
             // left JOIN right ON ...
             var sql = ""
             sql += try leftSource.sourceSQL(db, &arguments)
             sql += " \(op.rawValue) "
-            sql += try rightSource.sourceSQL(db, &arguments)
-            if !foreignKey.columnMapping.isEmpty {
-                sql += " ON "
-                
-                let leftQualifier = leftSource.qualifier!
-                let rightQualifier = rightSource.qualifier!
-                
-                sql += foreignKey.columnMapping
-                    .map { rightColumn, leftColumn in
-                        let leftColumn = Column(leftColumn).qualified(by: leftQualifier)
-                        let rightColumn = Column(rightColumn).qualified(by: rightQualifier)
-                        return (rightColumn == leftColumn).sql }
-                    .joined(separator: " AND ")
-                
-                return sql
+            sql += try rightQuery.source.sourceSQL(db, &arguments)
+            
+            let leftQualifier = leftSource.qualifier!
+            let rightQualifier = rightQuery.source.qualifier!
+            
+            var onClauses = foreignKey.columnMapping
+                .map { (rightColumn, leftColumn) -> SQLExpression in
+                    let leftColumn = Column(leftColumn).qualified(by: leftQualifier)
+                    let rightColumn = Column(rightColumn).qualified(by: rightQualifier)
+                    return (rightColumn == leftColumn) }
+            if let onExpression = try rightQuery.onExpression?(db) {
+                onClauses.append(onExpression)
             }
-            fatalError("not implemented")
+            if !onClauses.isEmpty {
+                let onClause = onClauses.suffix(from: 1).reduce(onClauses.first!, &&)
+                sql += " ON " + onClause.expressionSQL(&arguments)
+            }
+            
+            return sql
         }
     }
     
@@ -323,7 +334,9 @@ indirect enum SQLSource {
         switch self {
         case .table(let tableName, let oldQualifier):
             if oldQualifier == nil {
-                return .table(name: tableName, qualifier: SQLSourceQualifier(tableName: tableName, alias: qualifier.alias))
+                return .table(
+                    name: tableName,
+                    qualifier: SQLSourceQualifier(tableName: tableName, alias: qualifier.alias))
             } else {
                 return self
             }
@@ -333,8 +346,12 @@ indirect enum SQLSource {
             } else {
                 return self
             }
-        case .joined(let op, let leftSource, let rightSource, let foreignKey):
-            return .joined(op: op, left: leftSource.qualified(by: qualifier), right: rightSource, foreignKey: foreignKey)
+        case .joined(let op, let leftSource, let rightQuery, let foreignKey):
+            return .joined(
+                op: op,
+                leftSource: leftSource.qualified(by: qualifier),
+                rightQuery: rightQuery,
+                foreignKey: foreignKey)
         }
     }
 }
