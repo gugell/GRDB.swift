@@ -73,6 +73,7 @@ class HasManyAssociationIncludingTests: GRDBTestCase {
             try db.execute("INSERT INTO parents (id, name) VALUES (?, ?)", arguments: [2, "b"])
             try db.execute("INSERT INTO children (id, parentId, name) VALUES (?, ?, ?)", arguments: [3, 2, "a"])
             try db.execute("INSERT INTO children (id, parentId, name) VALUES (?, ?, ?)", arguments: [4, 2, "b"])
+            try db.execute("INSERT INTO parents (id, name) VALUES (?, ?)", arguments: [3, "a"])
         }
         
         try dbQueue.inDatabase { db in
@@ -81,9 +82,9 @@ class HasManyAssociationIncludingTests: GRDBTestCase {
                 .fetchAll(db)
             
             XCTAssertEqual(sqlQueries[sqlQueries.count - 2], "SELECT * FROM \"parents\"")
-            XCTAssertEqual(sqlQueries[sqlQueries.count - 1], "SELECT * FROM \"children\" WHERE (\"parentId\" IN (1, 2))")
+            XCTAssertEqual(sqlQueries[sqlQueries.count - 1], "SELECT * FROM \"children\" WHERE (\"parentId\" IN (1, 2, 3))")
             
-            let expectedGraph = [
+            assertEqual(graph, [
                 (Parent(row: ["id": 1, "name": "a"]), [
                     Child(row: ["id": 1, "parentId": 1, "name": "a"]),
                     Child(row: ["id": 2, "parentId": 1, "name": "b"]),
@@ -92,9 +93,8 @@ class HasManyAssociationIncludingTests: GRDBTestCase {
                     Child(row: ["id": 3, "parentId": 2, "name": "a"]),
                     Child(row: ["id": 4, "parentId": 2, "name": "b"]),
                     ]),
-            ]
-            
-            assertEqual(graph, expectedGraph)
+                (Parent(row: ["id": 3, "name": "a"]), []),
+                ])
         }
     }
 
@@ -159,6 +159,7 @@ class HasManyAssociationIncludingTests: GRDBTestCase {
             try db.execute("INSERT INTO parents (id, name) VALUES (?, ?)", arguments: [2, "b"])
             try db.execute("INSERT INTO children (id, parentId, name) VALUES (?, ?, ?)", arguments: [3, 2, "a"])
             try db.execute("INSERT INTO children (id, parentId, name) VALUES (?, ?, ?)", arguments: [4, 2, "b"])
+            try db.execute("INSERT INTO parents (id, name) VALUES (?, ?)", arguments: [3, "a"])
         }
         
         try dbQueue.inDatabase { db in
@@ -170,16 +171,15 @@ class HasManyAssociationIncludingTests: GRDBTestCase {
                     .fetchAll(db)
                 
                 XCTAssertEqual(sqlQueries[sqlQueries.count - 2], "SELECT * FROM \"parents\" WHERE (\"name\" = 'a')")
-                XCTAssertEqual(sqlQueries[sqlQueries.count - 1], "SELECT * FROM \"children\" WHERE (\"parentId\" IN (1))")
+                XCTAssertEqual(sqlQueries[sqlQueries.count - 1], "SELECT * FROM \"children\" WHERE (\"parentId\" IN (1, 3))")
                 
-                let expectedGraph = [
+                assertEqual(graph, [
                     (Parent(row: ["id": 1, "name": "a"]), [
                         Child(row: ["id": 1, "parentId": 1, "name": "a"]),
                         Child(row: ["id": 2, "parentId": 1, "name": "b"]),
                         ]),
-                    ]
-                
-                assertEqual(graph, expectedGraph)
+                    (Parent(row: ["id": 3, "name": "a"]), []),
+                    ])
             }
             
             do {
@@ -190,16 +190,15 @@ class HasManyAssociationIncludingTests: GRDBTestCase {
                     .fetchAll(db)
                 
                 XCTAssertEqual(sqlQueries[sqlQueries.count - 2], "SELECT * FROM \"parents\" WHERE (\"name\" = 'a')")
-                XCTAssertEqual(sqlQueries[sqlQueries.count - 1], "SELECT * FROM \"children\" WHERE (\"parentId\" IN (1))")
+                XCTAssertEqual(sqlQueries[sqlQueries.count - 1], "SELECT * FROM \"children\" WHERE (\"parentId\" IN (1, 3))")
                 
-                let expectedGraph = [
+                assertEqual(graph, [
                     (Parent(row: ["id": 1, "name": "a"]), [
                         Child(row: ["id": 1, "parentId": 1, "name": "a"]),
                         Child(row: ["id": 2, "parentId": 1, "name": "b"]),
                         ]),
-                    ]
-                
-                assertEqual(graph, expectedGraph)
+                    (Parent(row: ["id": 3, "name": "a"]), []),
+                    ])
             }
             
             do {
@@ -210,9 +209,9 @@ class HasManyAssociationIncludingTests: GRDBTestCase {
                     .fetchAll(db)
                 
                 XCTAssertEqual(sqlQueries[sqlQueries.count - 2], "SELECT * FROM \"parents\" ORDER BY \"name\" DESC")
-                XCTAssertEqual(sqlQueries[sqlQueries.count - 1], "SELECT * FROM \"children\" WHERE (\"parentId\" IN (2, 1))")
+                XCTAssertEqual(sqlQueries[sqlQueries.count - 1], "SELECT * FROM \"children\" WHERE (\"parentId\" IN (2, 1, 3))") // warning: ordering of 1 and 3 parentId is unclear
                 
-                let expectedGraph = [
+                assertEqual(graph, [
                     (Parent(row: ["id": 2, "name": "b"]), [
                         Child(row: ["id": 3, "parentId": 2, "name": "a"]),
                         Child(row: ["id": 4, "parentId": 2, "name": "b"]),
@@ -221,9 +220,8 @@ class HasManyAssociationIncludingTests: GRDBTestCase {
                         Child(row: ["id": 1, "parentId": 1, "name": "a"]),
                         Child(row: ["id": 2, "parentId": 1, "name": "b"]),
                         ]),
-                    ]
-                
-                assertEqual(graph, expectedGraph)
+                    (Parent(row: ["id": 3, "name": "a"]), []),
+                    ])
             }
             
             do {
@@ -234,9 +232,9 @@ class HasManyAssociationIncludingTests: GRDBTestCase {
                     .fetchAll(db)
                 
                 XCTAssertEqual(sqlQueries[sqlQueries.count - 2], "SELECT * FROM \"parents\" ORDER BY \"name\" DESC")
-                XCTAssertEqual(sqlQueries[sqlQueries.count - 1], "SELECT * FROM \"children\" WHERE (\"parentId\" IN (2, 1))")
+                XCTAssertEqual(sqlQueries[sqlQueries.count - 1], "SELECT * FROM \"children\" WHERE (\"parentId\" IN (2, 1, 3))") // warning: ordering of 1 and 3 parentId is unclear
                 
-                let expectedGraph = [
+                assertEqual(graph, [
                     (Parent(row: ["id": 2, "name": "b"]), [
                         Child(row: ["id": 3, "parentId": 2, "name": "a"]),
                         Child(row: ["id": 4, "parentId": 2, "name": "b"]),
@@ -245,9 +243,8 @@ class HasManyAssociationIncludingTests: GRDBTestCase {
                         Child(row: ["id": 1, "parentId": 1, "name": "a"]),
                         Child(row: ["id": 2, "parentId": 1, "name": "b"]),
                         ]),
-                    ]
-                
-                assertEqual(graph, expectedGraph)
+                    (Parent(row: ["id": 3, "name": "a"]), []),
+                    ])
             }
         }
     }
@@ -315,6 +312,7 @@ class HasManyAssociationIncludingTests: GRDBTestCase {
             try db.execute("INSERT INTO parents (id, name) VALUES (?, ?)", arguments: [2, "b"])
             try db.execute("INSERT INTO children (id, parentId, name) VALUES (?, ?, ?)", arguments: [3, 2, "a"])
             try db.execute("INSERT INTO children (id, parentId, name) VALUES (?, ?, ?)", arguments: [4, 2, "b"])
+            try db.execute("INSERT INTO parents (id, name) VALUES (?, ?)", arguments: [3, "a"])
         }
         
         try dbQueue.inDatabase { db in
@@ -325,18 +323,17 @@ class HasManyAssociationIncludingTests: GRDBTestCase {
                     .fetchAll(db)
                 
                 XCTAssertEqual(sqlQueries[sqlQueries.count - 2], "SELECT * FROM \"parents\"")
-                XCTAssertEqual(sqlQueries[sqlQueries.count - 1], "SELECT * FROM \"children\" WHERE ((\"name\" = 'a') AND (\"parentId\" IN (1, 2)))")
+                XCTAssertEqual(sqlQueries[sqlQueries.count - 1], "SELECT * FROM \"children\" WHERE ((\"name\" = 'a') AND (\"parentId\" IN (1, 2, 3)))")
                 
-                let expectedGraph = [
+                assertEqual(graph, [
                     (Parent(row: ["id": 1, "name": "a"]), [
                         Child(row: ["id": 1, "parentId": 1, "name": "a"]),
                         ]),
                     (Parent(row: ["id": 2, "name": "b"]), [
                         Child(row: ["id": 3, "parentId": 2, "name": "a"]),
                         ]),
-                    ]
-                
-                assertEqual(graph, expectedGraph)
+                    (Parent(row: ["id": 3, "name": "a"]), []),
+                    ])
             }
             
             do {
@@ -346,9 +343,9 @@ class HasManyAssociationIncludingTests: GRDBTestCase {
                     .fetchAll(db)
                 
                 XCTAssertEqual(sqlQueries[sqlQueries.count - 2], "SELECT * FROM \"parents\"")
-                XCTAssertEqual(sqlQueries[sqlQueries.count - 1], "SELECT * FROM \"children\" WHERE (\"parentId\" IN (1, 2)) ORDER BY \"name\" DESC")
+                XCTAssertEqual(sqlQueries[sqlQueries.count - 1], "SELECT * FROM \"children\" WHERE (\"parentId\" IN (1, 2, 3)) ORDER BY \"name\" DESC")
                 
-                let expectedGraph = [
+                assertEqual(graph, [
                     (Parent(row: ["id": 1, "name": "a"]), [
                         Child(row: ["id": 2, "parentId": 1, "name": "b"]),
                         Child(row: ["id": 1, "parentId": 1, "name": "a"]),
@@ -357,9 +354,8 @@ class HasManyAssociationIncludingTests: GRDBTestCase {
                         Child(row: ["id": 4, "parentId": 2, "name": "b"]),
                         Child(row: ["id": 3, "parentId": 2, "name": "a"]),
                         ]),
-                    ]
-                
-                assertEqual(graph, expectedGraph)
+                    (Parent(row: ["id": 3, "name": "a"]), []),
+                    ])
             }
         }
     }

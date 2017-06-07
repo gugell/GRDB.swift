@@ -10,6 +10,7 @@ import XCTest
 class HasManyAssociationBelongingToTests: GRDBTestCase {
     
     // TODO: tests for left implicit row id, and compound keys
+    // TODO: test fetchOne, fetchCursor
     
     func testBelongingTo() throws {
         struct Child : TableMapping, RowConvertible {
@@ -82,7 +83,9 @@ class HasManyAssociationBelongingToTests: GRDBTestCase {
             try b.insert(db)
             try db.execute("INSERT INTO children (id, parentId, name) VALUES (?, ?, ?)", arguments: [3, b.id, "a"])
             try db.execute("INSERT INTO children (id, parentId, name) VALUES (?, ?, ?)", arguments: [4, b.id, "b"])
-            
+            var c = Parent(id: nil, name: "a")
+            try c.insert(db)
+
             do {
                 let request = Parent.children.belonging(to: a)
                 let children = try request.fetchAll(db)
@@ -101,6 +104,13 @@ class HasManyAssociationBelongingToTests: GRDBTestCase {
                     Child(row: ["id": 3, "parentId": b.id, "name": "a"]),
                     Child(row: ["id": 4, "parentId": b.id, "name": "b"]),
                     ])
+            }
+            
+            do {
+                let request = Parent.children.belonging(to: c)
+                let children = try request.fetchAll(db)
+                XCTAssertEqual(lastSQLQuery, "SELECT * FROM \"children\" WHERE (\"parentId\" = 3)")
+                XCTAssertTrue(children.isEmpty)
             }
             
             do {
@@ -195,6 +205,8 @@ class HasManyAssociationBelongingToTests: GRDBTestCase {
             try b.insert(db)
             try db.execute("INSERT INTO children (id, parentId, name) VALUES (?, ?, ?)", arguments: [3, b.id, "a"])
             try db.execute("INSERT INTO children (id, parentId, name) VALUES (?, ?, ?)", arguments: [4, b.id, "b"])
+            var c = Parent(id: nil, name: "a")
+            try c.insert(db)
             
             do {
                 let children = try a.fetchAll(db, Parent.children)
@@ -212,6 +224,12 @@ class HasManyAssociationBelongingToTests: GRDBTestCase {
                     Child(row: ["id": 3, "parentId": b.id, "name": "a"]),
                     Child(row: ["id": 4, "parentId": b.id, "name": "b"]),
                     ])
+            }
+            
+            do {
+                let children = try c.fetchAll(db, Parent.children)
+                XCTAssertEqual(lastSQLQuery, "SELECT * FROM \"children\" WHERE (\"parentId\" = 3)")
+                XCTAssertTrue(children.isEmpty)
             }
             
             do {

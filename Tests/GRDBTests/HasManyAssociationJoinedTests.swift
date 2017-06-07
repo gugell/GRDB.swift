@@ -10,6 +10,7 @@ import XCTest
 class HasManyAssociationJoinedTests: GRDBTestCase {
     
     // TODO: tests for left implicit row id, and compound keys
+    // TODO: test fetchOne, fetchCursor
     
     func testSimplestRequest() throws {
         struct Child : TableMapping, RowConvertible {
@@ -70,6 +71,7 @@ class HasManyAssociationJoinedTests: GRDBTestCase {
             try db.execute("INSERT INTO parents (id, name) VALUES (?, ?)", arguments: [2, "b"])
             try db.execute("INSERT INTO children (id, parentId, name) VALUES (?, ?, ?)", arguments: [3, 2, "a"])
             try db.execute("INSERT INTO children (id, parentId, name) VALUES (?, ?, ?)", arguments: [4, 2, "b"])
+            try db.execute("INSERT INTO parents (id, name) VALUES (?, ?)", arguments: [3, "a"])
         }
         
         try dbQueue.inDatabase { db in
@@ -147,6 +149,7 @@ class HasManyAssociationJoinedTests: GRDBTestCase {
             try db.execute("INSERT INTO parents (id, name) VALUES (?, ?)", arguments: [2, "b"])
             try db.execute("INSERT INTO children (id, parentId, name) VALUES (?, ?, ?)", arguments: [3, 2, "a"])
             try db.execute("INSERT INTO children (id, parentId, name) VALUES (?, ?, ?)", arguments: [4, 2, "b"])
+            try db.execute("INSERT INTO parents (id, name) VALUES (?, ?)", arguments: [3, "a"])
         }
         
         try dbQueue.inDatabase { db in
@@ -187,6 +190,7 @@ class HasManyAssociationJoinedTests: GRDBTestCase {
                     .joined(with: Parent.children)
                     .fetchAll(db)
                 
+                // TODO: check request & results
                 XCTAssertEqual(lastSQLQuery, "SELECT \"left\".*, \"right\".* FROM \"parents\" AS \"left\" JOIN \"children\" AS \"right\" ON (\"right\".\"parentId\" = \"left\".\"id\") ORDER BY \"left\".\"name\" DESC")
                 
                 assertEqual(graph, [
@@ -204,6 +208,7 @@ class HasManyAssociationJoinedTests: GRDBTestCase {
                     .order(Column("name").desc)
                     .fetchAll(db)
                 
+                // TODO: check request & results
                 XCTAssertEqual(lastSQLQuery, "SELECT \"left\".*, \"right\".* FROM \"parents\" AS \"left\" JOIN \"children\" AS \"right\" ON (\"right\".\"parentId\" = \"left\".\"id\") ORDER BY \"left\".\"name\" DESC")
                 
                 assertEqual(graph, [
@@ -277,6 +282,7 @@ class HasManyAssociationJoinedTests: GRDBTestCase {
             try db.execute("INSERT INTO parents (id, name) VALUES (?, ?)", arguments: [2, "b"])
             try db.execute("INSERT INTO children (id, parentId, name) VALUES (?, ?, ?)", arguments: [3, 2, "a"])
             try db.execute("INSERT INTO children (id, parentId, name) VALUES (?, ?, ?)", arguments: [4, 2, "b"])
+            try db.execute("INSERT INTO parents (id, name) VALUES (?, ?)", arguments: [3, "a"])
         }
         
         try dbQueue.inDatabase { db in
@@ -286,6 +292,7 @@ class HasManyAssociationJoinedTests: GRDBTestCase {
                     .joined(with: Parent.filteredChildren)
                     .fetchAll(db)
                 
+                // TODO: check request & results
                 XCTAssertEqual(lastSQLQuery, "SELECT \"left\".*, \"right\".* FROM \"parents\" AS \"left\" JOIN \"children\" AS \"right\" ON (\"right\".\"parentId\" = \"left\".\"id\") WHERE (\"right\".\"name\" = \'a\')")
                 
                 assertEqual(graph, [
@@ -300,6 +307,7 @@ class HasManyAssociationJoinedTests: GRDBTestCase {
                     .joined(with: Parent.orderedChildren)
                     .fetchAll(db)
                 
+                // TODO: check request & results
                 XCTAssertEqual(lastSQLQuery, "SELECT \"left\".*, \"right\".* FROM \"parents\" AS \"left\" JOIN \"children\" AS \"right\" ON (\"right\".\"parentId\" = \"left\".\"id\") ORDER BY \"right\".\"name\" DESC")
                 
                 assertEqual(graph, [
