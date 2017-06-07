@@ -93,11 +93,12 @@ extension HasManyAssociation.JoinedRequest : TypedRequest {
     
     public func prepare(_ db: Database) throws -> (SelectStatement, RowAdapter?) {
         return try leftRequest.query
-            .joined(with: association.rightRequest.query, on: association.foreignKey(db))
+            .joined(.join, association.rightRequest.query, on: association.foreignKey(db))
             .prepare(db)
     }
 }
 
+// TODO: are those API useful?
 extension HasManyAssociation.JoinedRequest where Left: RowConvertible, Right: RowConvertible {
     public func fetchCursor(_ db: Database) throws -> DatabaseCursor<(Left, Right)> {
         return try JoinedPair<Left, Right>.fetchCursor(db, self)
