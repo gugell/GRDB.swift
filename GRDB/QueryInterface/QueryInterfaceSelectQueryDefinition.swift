@@ -90,8 +90,10 @@ struct QueryInterfaceSelectQueryDefinition {
             rightQuery: JoinedRightQuery(source: rightSource, onExpression: rightQuery.whereExpression),
             foreignKey: foreignKey)
         
+        // Gather orderings
+        let joinedOrderings = leftQuery.eventuallyReversedOrderings + rightQuery.eventuallyReversedOrderings
+        
         // TODO: take care of distinct
-        // TODO: take care of order/isReversed
         // TODO: take care of group/having
         // TODO: take care of limit
         
@@ -99,6 +101,8 @@ struct QueryInterfaceSelectQueryDefinition {
         var joinedQuery = leftQuery
         joinedQuery.selection = joinedSelection
         joinedQuery.source = joinedSource
+        joinedQuery.orderings = joinedOrderings
+        joinedQuery.isReversed = false
         joinedQuery.adapter = { db in
             let leftCount = try leftQuery.numberOfColumns(db)
             let rightCount = try rightQuery.numberOfColumns(db)
@@ -182,7 +186,19 @@ extension QueryInterfaceSelectQueryDefinition : Request {
             sql += " HAVING " + havingExpression.expressionSQL(&arguments)
         }
         
-        var orderings = self.orderings
+        var orderings = self.eventuallyReversedOrderings
+        if !orderings.isEmpty {
+            sql += " ORDER BY " + orderings.map { $0.orderingTermSQL(&arguments) }.joined(separator: ", ")
+        }
+        
+        if let limit = limit {
+            sql += " LIMIT " + limit.sql
+        }
+        
+        return sql
+    }
+    
+    var eventuallyReversedOrderings: [SQLOrderingTerm] {
         if isReversed {
             if orderings.isEmpty {
                 // https://www.sqlite.org/lang_createtable.html#rowid
@@ -197,20 +213,13 @@ extension QueryInterfaceSelectQueryDefinition : Request {
                 // Here we assume that rowid is not a custom column.
                 // TODO: support for user-defined rowid column.
                 // TODO: support for WITHOUT ROWID tables.
-                orderings = [Column.rowID.desc]
+                return [Column.rowID.desc]
             } else {
-                orderings = orderings.map { $0.reversed }
+                return orderings.map { $0.reversed }
             }
+        } else {
+            return orderings
         }
-        if !orderings.isEmpty {
-            sql += " ORDER BY " + orderings.map { $0.orderingTermSQL(&arguments) }.joined(separator: ", ")
-        }
-        
-        if let limit = limit {
-            sql += " LIMIT " + limit.sql
-        }
-        
-        return sql
     }
     
     private var countQuery: QueryInterfaceSelectQueryDefinition {

@@ -305,10 +305,11 @@ class HasManyAssociationJoinedTests: GRDBTestCase {
                 // ordered children
                 let graph = try Parent
                     .joined(with: Parent.orderedChildren)
+                    .order(Column("name"))
                     .fetchAll(db)
                 
                 // TODO: check request & results
-                XCTAssertEqual(lastSQLQuery, "SELECT \"left\".*, \"right\".* FROM \"parents\" AS \"left\" JOIN \"children\" AS \"right\" ON (\"right\".\"parentId\" = \"left\".\"id\") ORDER BY \"right\".\"name\" DESC")
+                XCTAssertEqual(lastSQLQuery, "SELECT \"left\".*, \"right\".* FROM \"parents\" AS \"left\" JOIN \"children\" AS \"right\" ON (\"right\".\"parentId\" = \"left\".\"id\") ORDER BY \"left\".\"name\", \"right\".\"name\" DESC")
                 
                 assertEqual(graph, [
                     (Parent(row: ["id": 1, "name": "a"]), Child(row: ["id": 2, "parentId": 1, "name": "b"])),

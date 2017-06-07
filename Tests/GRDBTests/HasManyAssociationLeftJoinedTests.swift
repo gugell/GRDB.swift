@@ -283,7 +283,7 @@ class HasManyAssociationLeftJoinedTests: GRDBTestCase {
                     .fetchAll(db)
                 
                 // TODO: check request & results
-                XCTAssertEqual(lastSQLQuery, "SELECT \"left\".*, \"right\".* FROM \"parents\" AS \"left\" LEFT JOIN \"children\" AS \"right\" ON (\"right\".\"parentId\" = \"left\".\"id\") WHERE (\"right\".\"name\" = \'a\')")
+                XCTAssertEqual(lastSQLQuery, "SELECT \"left\".*, \"right\".* FROM \"parents\" AS \"left\" LEFT JOIN \"children\" AS \"right\" ON ((\"right\".\"parentId\" = \"left\".\"id\") AND (\"right\".\"name\" = \'a\'))")
             }
             
             do {
