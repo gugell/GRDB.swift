@@ -34,7 +34,11 @@ extension Column : SQLExpression {
     ///
     /// See SQLExpression.expressionSQL(_:arguments:)
     public func expressionSQL(_ arguments: inout StatementArguments?) -> String {
-        return name.quotedDatabaseIdentifier
+        if let alias = qualifier?.alias {
+            return "\(alias.quotedDatabaseIdentifier).\(name.quotedDatabaseIdentifier)"
+        } else {
+            return name.quotedDatabaseIdentifier
+        }
     }
     
     public func qualified(by qualifier: SQLSourceQualifier) -> Column {

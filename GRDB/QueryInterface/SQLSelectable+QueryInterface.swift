@@ -4,14 +4,21 @@ struct SQLStar : SQLSelectable {
     let qualifier: SQLSourceQualifier?
     
     func resultColumnSQL(_ arguments: inout StatementArguments?) -> String {
-        return "*"
+        if let alias = qualifier?.alias {
+            return "\(alias.quotedDatabaseIdentifier).*"
+        } else {
+            return "*"
+        }
     }
     
     func countedSQL(_ arguments: inout StatementArguments?) -> String {
+        GRDBPrecondition(qualifier == nil, "Not implemented")
         return "*"
     }
     
     func count(distinct: Bool) -> SQLCount? {
+        GRDBPrecondition(qualifier == nil, "Not implemented")
+        
         // SELECT DISTINCT * FROM tableName ...
         guard !distinct else {
             return nil
@@ -25,7 +32,7 @@ struct SQLStar : SQLSelectable {
     
     func numberOfColumns(_ db: Database) throws -> Int {
         guard let tableName = qualifier?.tableName else {
-            fatalError("unqualified: can't count number of columns")
+            fatalError("GRDB bug: can't count number of columns in unknown table")
         }
         return try db.columnCount(in: tableName)
     }

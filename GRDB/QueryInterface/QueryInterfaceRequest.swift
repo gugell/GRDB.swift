@@ -1,8 +1,7 @@
 /// A QueryInterfaceRequest describes an SQL query.
 ///
 /// See https://github.com/groue/GRDB.swift#the-query-interface
-public struct QueryInterfaceRequest<T> : TypedRequest {
-    public typealias Fetched = T
+public struct QueryInterfaceRequest<T> {
     
     let query: QueryInterfaceSelectQueryDefinition
     
@@ -11,18 +10,12 @@ public struct QueryInterfaceRequest<T> : TypedRequest {
     }
 }
 
-extension QueryInterfaceRequest : SQLSelectQuery {
+extension QueryInterfaceRequest : TypedRequest {
+    public typealias Fetched = T
     
-    /// This function is an implementation detail of the query interface.
-    /// Do not use it directly.
-    ///
-    /// See https://github.com/groue/GRDB.swift/#the-query-interface
-    ///
-    /// # Low Level Query Interface
-    ///
-    /// See SQLSelectQuery.selectQuerySQL(_)
-    public func selectQuerySQL(_ db: Database, _ arguments: inout StatementArguments?) throws -> String {
-        return try query.selectQuerySQL(db, &arguments)
+    /// TODO
+    public func prepare(_ db: Database) throws -> (SelectStatement, RowAdapter?) {
+        return try query.prepare(db)
     }
 }
 

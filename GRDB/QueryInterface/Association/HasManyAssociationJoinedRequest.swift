@@ -92,17 +92,9 @@ extension HasManyAssociation.JoinedRequest : TypedRequest {
     public typealias Fetched = (Left, Right)
     
     public func prepare(_ db: Database) throws -> (SelectStatement, RowAdapter?) {
-        let query = try leftRequest.query.joined(with: association.rightRequest.query, on: association.foreignKey(db))
-        
-        let numberOfLeftColumns = try leftRequest.query.numberOfColumns(db)
-        let numberOfRightColumns = try leftRequest.query.numberOfColumns(db)
-        let adapter = ScopeAdapter([
-            "left": RangeRowAdapter(0..<numberOfLeftColumns),
-            "right": RangeRowAdapter(numberOfLeftColumns..<(numberOfLeftColumns + numberOfRightColumns))])
-        
-        let (statement, baseAdapter) = try query.prepare(db)
-        GRDBPrecondition(baseAdapter == nil, "not implemented")
-        return (statement, adapter)
+        return try leftRequest.query
+            .joined(with: association.rightRequest.query, on: association.foreignKey(db))
+            .prepare(db)
     }
 }
 
