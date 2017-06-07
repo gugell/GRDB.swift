@@ -90,46 +90,59 @@ struct QueryInterfaceSelectQueryDefinition {
         return sql
     }
     
-    /// Part of Request protocol
-    func fetchCount(_ db: Database) throws -> Int {
-        return try Int.fetchOne(db, countQuery)!
+    func numberOfColumns(_ db: Database) throws -> Int {
+        fatalError("not implemented")
     }
     
-    private var countQuery: QueryInterfaceSelectQueryDefinition {
-        guard groupByExpressions.isEmpty && limit == nil else {
-            // SELECT ... GROUP BY ...
-            // SELECT ... LIMIT ...
-            return trivialCountQuery
-        }
-        
-        guard let source = source, case .table = source else {
-            // SELECT ... FROM (something which is not a table)
-            return trivialCountQuery
-        }
-        
-        assert(!selection.isEmpty)
-        if selection.count == 1 {
-            guard let count = self.selection[0].count(distinct: isDistinct) else {
-                return trivialCountQuery
-            }
-            var countQuery = unorderedQuery
-            countQuery.isDistinct = false
-            countQuery.selection = [count.sqlSelectable]
-            return countQuery
+    func qualified(by qualifier: SQLSourceQualifier) -> QueryInterfaceSelectQueryDefinition {
+        let qualifiedSource: SQLSource?
+        if let source = source {
+            qualifiedSource = source.qualified(by: qualifier)
         } else {
-            // SELECT [DISTINCT] expr1, expr2, ... FROM tableName ...
-            
-            guard !isDistinct else {
-                return trivialCountQuery
-            }
-
-            // SELECT expr1, expr2, ... FROM tableName ...
-            // ->
-            // SELECT COUNT(*) FROM tableName ...
-            var countQuery = unorderedQuery
-            countQuery.selection = [SQLExpressionCount(SQLStar())]
-            return countQuery
+            qualifiedSource = nil
         }
+        
+        let appliedQualifier = qualifiedSource?.qualifier! ?? qualifier
+        let qualifiedSelection = selection.map { $0.qualified(by: appliedQualifier) }
+        let qualifiedFilter = whereExpression.map { closure in
+            { db in try closure(db).qualified(by: appliedQualifier) }
+        }
+        let qualifiedGroupByExpressions = groupByExpressions.map { $0.qualified(by: appliedQualifier) }
+        let qualifiedOrderings = orderings.map { $0.qualified(by: appliedQualifier) }
+        let qualifiedHavingExpression = havingExpression?.qualified(by: appliedQualifier)
+        
+        return QueryInterfaceSelectQueryDefinition(
+            select: qualifiedSelection,
+            isDistinct: isDistinct,
+            from: qualifiedSource,
+            filter: qualifiedFilter,
+            groupBy: qualifiedGroupByExpressions,
+            orderBy: qualifiedOrderings,
+            isReversed: isReversed,
+            having: qualifiedHavingExpression,
+            limit: limit)
+    }
+    
+    func joined(with rightQuery: QueryInterfaceSelectQueryDefinition, on foreignKey: ForeignKeyInfo) -> QueryInterfaceSelectQueryDefinition {
+        // SELECT * FROM left ... -> SELECT left.* FROM left ...
+        let leftQuery = self.qualified(by: SQLSourceQualifier(alias: "left")) // we'll be smarter later
+
+        // SELECT * FROM right ... -> SELECT right.* FROM right ...
+        let rightQuery = rightQuery.qualified(by: SQLSourceQualifier(alias: "right")) // we'll be smarter later
+        
+        // Gather selections
+        let joinedSelection = leftQuery.selection + rightQuery.selection
+        
+        // Join sources
+        guard let leftSource = leftQuery.source else { fatalError("Join requires a left source") }
+        guard let rightSource = rightQuery.source else { fatalError("Join requires a right source") }
+        let joinedSource = SQLSource.joined(left: leftSource, right: rightSource, foreignKey: foreignKey)
+        
+        // Result
+        var joinedQuery = leftQuery
+        joinedQuery.selection = joinedSelection
+        joinedQuery.source = joinedSource
+        return joinedQuery
     }
     
     func makeDeleteStatement(_ db: Database) throws -> UpdateStatement {
@@ -163,42 +176,70 @@ struct QueryInterfaceSelectQueryDefinition {
         statement.arguments = arguments!
         return statement
     }
-    
-    // SELECT COUNT(*) FROM (self)
-    private var trivialCountQuery: QueryInterfaceSelectQueryDefinition {
-        return QueryInterfaceSelectQueryDefinition(
-            select: [SQLExpressionCount(SQLStar())],
-            from: .query(query: unorderedQuery, alias: nil))
-    }
-    
-    /// Remove ordering
-    private var unorderedQuery: QueryInterfaceSelectQueryDefinition {
-        var query = self
-        query.isReversed = false
-        query.orderings = []
-        return query
-    }
 }
 
 indirect enum SQLSource {
-    case table(name: String, alias: String?)
-    case query(query: QueryInterfaceSelectQueryDefinition, alias: String?)
+    case table(name: String, qualifier: SQLSourceQualifier?)
+    case query(query: QueryInterfaceSelectQueryDefinition, qualifier: SQLSourceQualifier?)
+    case joined(left: SQLSource, right: SQLSource, foreignKey: ForeignKeyInfo)
+    
+    var qualifier: SQLSourceQualifier? {
+        switch self {
+        case .table(_, let qualifier): return qualifier
+        case .query(_, let qualifier): return qualifier
+        case .joined(let leftSource, _, _): return leftSource.qualifier
+        }
+    }
     
     func sourceSQL(_ db: Database, _ arguments: inout StatementArguments?) throws -> String {
         switch self {
-        case .table(let table, let alias):
-            if let alias = alias {
+        case .table(let table, let qualifier):
+            if let alias = qualifier?.alias {
                 return table.quotedDatabaseIdentifier + " AS " + alias.quotedDatabaseIdentifier
             } else {
                 return table.quotedDatabaseIdentifier
             }
-        case .query(let query, let alias):
-            if let alias = alias {
+        case .query(let query, let qualifier):
+            if let alias = qualifier?.alias {
                 return try "(" + query.sql(db, &arguments) + ") AS " + alias.quotedDatabaseIdentifier
             } else {
                 return try "(" + query.sql(db, &arguments) + ")"
             }
+        case .joined(let leftSource, let rightSource, let foreignKey):
+            // left JOIN right ON ...
+            var sql = ""
+            sql += try leftSource.sourceSQL(db, &arguments)
+            sql += " JOIN "
+            sql += try rightSource.sourceSQL(db, &arguments)
+            fatalError("not implemented")
         }
+    }
+    
+    func qualified(by qualifier: SQLSourceQualifier) -> SQLSource {
+        switch self {
+        case .table(let name, let oldQualifier):
+            if oldQualifier == nil {
+                return .table(name: name, qualifier: qualifier)
+            } else {
+                return self
+            }
+        case .query(let query, let oldQualifier):
+            if oldQualifier == nil {
+                return .query(query: query, qualifier: qualifier)
+            } else {
+                return self
+            }
+        case .joined(let leftSource, let rightSource, let foreignKey):
+            return .joined(left: leftSource.qualified(by: qualifier), right: rightSource, foreignKey: foreignKey)
+        }
+    }
+}
+
+public class SQLSourceQualifier {
+    let alias: String?
+    
+    init(alias: String?) {
+        self.alias = alias
     }
 }
 
@@ -219,7 +260,7 @@ extension SQLCount {
     var sqlSelectable: SQLSelectable {
         switch self {
         case .star:
-            return SQLExpressionCount(SQLStar())
+            return SQLExpressionCount(SQLStar(qualifier: nil))
         case .distinct(let expression):
             return SQLExpressionCountDistinct(expression)
         }

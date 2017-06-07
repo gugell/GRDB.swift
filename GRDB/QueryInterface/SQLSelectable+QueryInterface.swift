@@ -1,6 +1,8 @@
 // MARK: - SQLStar
 
 struct SQLStar : SQLSelectable {
+    let qualifier: SQLSourceQualifier?
+    
     func resultColumnSQL(_ arguments: inout StatementArguments?) -> String {
         return "*"
     }
@@ -9,7 +11,7 @@ struct SQLStar : SQLSelectable {
         return "*"
     }
     
-    public func count(distinct: Bool) -> SQLCount? {
+    func count(distinct: Bool) -> SQLCount? {
         // SELECT DISTINCT * FROM tableName ...
         guard !distinct else {
             return nil
@@ -19,6 +21,14 @@ struct SQLStar : SQLSelectable {
         // ->
         // SELECT COUNT(*) FROM tableName ...
         return .star
+    }
+    
+    func qualified(by qualifier: SQLSourceQualifier) -> SQLStar {
+        if self.qualifier == nil {
+            return SQLStar(qualifier: qualifier)
+        } else {
+            return self
+        }
     }
 }
 
@@ -44,5 +54,9 @@ struct SQLAliasedExpression : SQLSelectable {
     
     public func count(distinct: Bool) -> SQLCount? {
         return expression.count(distinct: distinct)
+    }
+    
+    func qualified(by qualifier: SQLSourceQualifier) -> SQLAliasedExpression {
+        return SQLAliasedExpression(expression.qualified(by: qualifier), alias: alias)
     }
 }

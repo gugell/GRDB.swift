@@ -12,6 +12,7 @@
 public protocol SQLOrderingTerm {
     var reversed: SQLOrderingTerm { get }
     func orderingTermSQL(_ arguments: inout StatementArguments?) -> String
+    func qualified(by qualifier: SQLSourceQualifier) -> Self
 }
 
 // MARK: - SQLOrdering
@@ -35,6 +36,15 @@ enum SQLOrdering : SQLOrderingTerm {
             return expression.expressionSQL(&arguments) + " ASC"
         case .desc(let expression):
             return expression.expressionSQL(&arguments) + " DESC"
+        }
+    }
+    
+    func qualified(by qualifier: SQLSourceQualifier) -> SQLOrdering {
+        switch self {
+        case .asc(let expression):
+            return .asc(expression.qualified(by: qualifier))
+        case .desc(let expression):
+            return .desc(expression.qualified(by: qualifier))
         }
     }
 }

@@ -79,6 +79,10 @@ public struct SQLExpressionLiteral : SQLExpression {
         }
         return sql
     }
+    
+    public func qualified(by qualifier: SQLSourceQualifier) -> SQLExpressionLiteral {
+        return self
+    }
 }
 
 // MARK: - SQLExpressionUnary
@@ -153,6 +157,10 @@ public struct SQLExpressionUnary : SQLExpression {
     /// See SQLExpression.expressionSQL(_:arguments:)
     public func expressionSQL(_ arguments: inout StatementArguments?) -> String {
         return op.sql + (op.needsRightSpace ? " " : "") + expression.expressionSQL(&arguments)
+    }
+    
+    public func qualified(by qualifier: SQLSourceQualifier) -> SQLExpressionUnary {
+        return SQLExpressionUnary(op, expression.qualified(by: qualifier))
     }
 }
 
@@ -246,6 +254,10 @@ public struct SQLExpressionBinary : SQLExpression {
         return "(" + lhs.expressionSQL(&arguments) + " " + op.sql + " " + rhs.expressionSQL(&arguments) + ")"
     }
     
+    public func qualified(by qualifier: SQLSourceQualifier) -> SQLExpressionBinary {
+        return SQLExpressionBinary(op, lhs.qualified(by: qualifier), rhs.qualified(by: qualifier))
+    }
+    
     /// This property is an implementation detail of the query interface.
     /// Do not use it directly.
     ///
@@ -292,6 +304,13 @@ struct SQLExpressionContains : SQLExpression {
     var negated: SQLExpression {
         return SQLExpressionContains(expression, collection, negated: !isNegated)
     }
+    
+    func qualified(by qualifier: SQLSourceQualifier) -> SQLExpressionContains {
+        return SQLExpressionContains(
+            expression.qualified(by: qualifier),
+            collection,
+            negated: isNegated)
+    }
 }
 
 // MARK: - SQLExpressionBetween
@@ -326,6 +345,14 @@ struct SQLExpressionBetween : SQLExpression {
 
     var negated: SQLExpression {
         return SQLExpressionBetween(expression, lowerBound, upperBound, negated: !isNegated)
+    }
+    
+    func qualified(by qualifier: SQLSourceQualifier) -> SQLExpressionBetween {
+        return SQLExpressionBetween(
+            expression.qualified(by: qualifier),
+            lowerBound.qualified(by: qualifier),
+            upperBound.qualified(by: qualifier),
+            negated: isNegated)
     }
 }
 
@@ -405,6 +432,12 @@ public struct SQLExpressionFunction : SQLExpression {
     public func expressionSQL(_ arguments: inout StatementArguments?) -> String {
         return functionName.sql + "(" + (self.arguments.map { $0.expressionSQL(&arguments) } as [String]).joined(separator: ", ")  + ")"
     }
+    
+    public func qualified(by qualifier: SQLSourceQualifier) -> SQLExpressionFunction {
+        return SQLExpressionFunction(
+            functionName,
+            arguments: arguments.map { $0.qualified(by: qualifier) })
+    }
 }
 
 // MARK: - SQLExpressionCount
@@ -424,6 +457,10 @@ struct SQLExpressionCount : SQLExpression {
     func expressionSQL(_ arguments: inout StatementArguments?) -> String {
         return "COUNT(" + counted.countedSQL(&arguments) + ")"
     }
+    
+    func qualified(by qualifier: SQLSourceQualifier) -> SQLExpressionCount {
+        return SQLExpressionCount(counted.qualified(by: qualifier))
+    }
 }
 
 // MARK: - SQLExpressionCountDistinct
@@ -441,6 +478,10 @@ struct SQLExpressionCountDistinct : SQLExpression {
     
     func expressionSQL(_ arguments: inout StatementArguments?) -> String {
         return "COUNT(DISTINCT " + counted.expressionSQL(&arguments) + ")"
+    }
+    
+    func qualified(by qualifier: SQLSourceQualifier) -> SQLExpressionCountDistinct {
+        return SQLExpressionCountDistinct(counted.qualified(by: qualifier))
     }
 }
 
@@ -467,5 +508,9 @@ struct SQLExpressionCollate : SQLExpression {
         } else {
             return sql + " COLLATE " + collationName.rawValue
         }
+    }
+    
+    func qualified(by qualifier: SQLSourceQualifier) -> SQLExpressionCollate {
+        return SQLExpressionCollate(expression.qualified(by: qualifier), collationName: collationName)
     }
 }

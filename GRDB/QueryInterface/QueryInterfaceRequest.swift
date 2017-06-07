@@ -284,11 +284,11 @@ extension TableMapping {
     public static func all() -> QueryInterfaceRequest<Self> {
         let selection: [SQLSelectable]
         if selectsRowID {
-            selection = [SQLStar(), Column.rowID]
+            selection = [SQLStar(qualifier: nil), Column.rowID]
         } else {
-            selection = [SQLStar()]
+            selection = [SQLStar(qualifier: nil)]
         }
-        return QueryInterfaceRequest(query: QueryInterfaceSelectQueryDefinition(select: selection, from: .table(name: databaseTableName, alias: nil)))
+        return QueryInterfaceRequest(query: QueryInterfaceSelectQueryDefinition(select: selection, from: .table(name: databaseTableName, qualifier: nil)))
     }
     
     /// Creates a QueryInterfaceRequest which fetches no record.

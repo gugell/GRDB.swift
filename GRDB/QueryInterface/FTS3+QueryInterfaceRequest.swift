@@ -13,8 +13,8 @@ extension QueryInterfaceRequest {
     /// database row.
     public func matching(_ pattern: FTS3Pattern?) -> QueryInterfaceRequest<T> {
         switch query.source {
-        case .table(let name, let alias)?:
-            return filter(SQLExpressionBinary(.match, Column(alias ?? name), pattern ?? DatabaseValue.null))
+        case .table(let name, let qualifier)?:
+            return filter(SQLExpressionBinary(.match, Column(qualifier?.alias ?? name), pattern ?? DatabaseValue.null))
         default:
             // Programmer error
             fatalError("fts3 match requires a table")

@@ -341,6 +341,10 @@ extension DatabaseValue : SQLExpression {
         }
     }
     
+    public func qualified(by qualifier: SQLSourceQualifier) -> DatabaseValue {
+        return self
+    }
+    
     public var negated: SQLExpression {
         switch storage {
         case .null:

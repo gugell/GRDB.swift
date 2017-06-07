@@ -62,4 +62,8 @@ extension SQLCollatedExpression : SQLOrderingTerm {
     public func orderingTermSQL(_ arguments: inout StatementArguments?) -> String {
         return sqlExpression.orderingTermSQL(&arguments)
     }
+    
+    public func qualified(by qualifier: SQLSourceQualifier) -> SQLCollatedExpression {
+        return SQLCollatedExpression(expression.qualified(by: qualifier), collationName: collationName)
+    }
 }

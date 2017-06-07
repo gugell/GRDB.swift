@@ -13,6 +13,7 @@ public protocol SQLSelectable {
     func resultColumnSQL(_ arguments: inout StatementArguments?) -> String
     func countedSQL(_ arguments: inout StatementArguments?) -> String
     func count(distinct: Bool) -> SQLCount?
+    func qualified(by qualifier: SQLSourceQualifier) -> Self
 }
 
 // MARK: - Counting
