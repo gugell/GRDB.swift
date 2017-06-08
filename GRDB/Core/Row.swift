@@ -498,10 +498,6 @@ extension Row {
     public func scoped(on name: String) -> Row? {
         return impl.scoped(on: name)
     }
-    
-    func scoped<Scope>(on scope: Scope) -> Row? where Scope: RawRepresentable, Scope.RawValue == String {
-        return scoped(on: scope.rawValue)
-    }
 }
 
 extension Row {

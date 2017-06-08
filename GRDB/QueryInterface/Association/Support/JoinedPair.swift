@@ -25,8 +25,8 @@ extension JoinedPair where Left: RowConvertible, Right: RowConvertible, Join == 
         // Reuse a single mutable row for performance.
         let row = try Row(statement: statement).adapted(with: adapter, layout: statement)
         return statement.cursor(arguments: arguments, next: {
-            let leftRow = row.scoped(on: JoinedPairScope.left)!
-            let rightRow = row.scoped(on: JoinedPairScope.right)!
+            let leftRow = row.scoped(on: JoinedPairScope.left.rawValue)!
+            let rightRow = row.scoped(on: JoinedPairScope.right.rawValue)!
             
             let left = Left(row: leftRow)
             let right = Right(row: rightRow)
@@ -75,8 +75,8 @@ extension JoinedPair where Left: RowConvertible, Right: RowConvertible, Join == 
         // Reuse a single mutable row for performance.
         let row = try Row(statement: statement).adapted(with: adapter, layout: statement)
         return statement.cursor(arguments: arguments, next: {
-            let leftRow = row.scoped(on: JoinedPairScope.left)!
-            let rightRow = row.scoped(on: JoinedPairScope.right)!
+            let leftRow = row.scoped(on: JoinedPairScope.left.rawValue)!
+            let rightRow = row.scoped(on: JoinedPairScope.right.rawValue)!
             
             let left = Left(row: leftRow)
             let right: Right? = rightRow.containsNonNullValues ? Right(row: rightRow) : nil
