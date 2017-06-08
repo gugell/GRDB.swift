@@ -98,7 +98,6 @@ extension HasManyAssociation.JoinedRequest : TypedRequest {
     }
 }
 
-// TODO: are those API useful?
 extension HasManyAssociation.JoinedRequest where Left: RowConvertible, Right: RowConvertible {
     public func fetchCursor(_ db: Database) throws -> DatabaseCursor<(Left, Right)> {
         return try JoinedPair<Left, Right>.fetchCursor(db, self)

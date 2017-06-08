@@ -437,6 +437,15 @@ extension Row {
     public var databaseValues: LazyMapCollection<Row, DatabaseValue> {
         return lazy.map { $0.1 }
     }
+    
+    /// TODO
+    public var containsNonNullValues: Bool {
+        return containsNonNullValues(at: IndexSet(0..<count))
+    }
+    
+    func containsNonNullValues(at indexes: IndexSet) -> Bool {
+        return impl.containsNonNullValues(at: indexes)
+    }
 }
 
 extension Row {
@@ -841,6 +850,7 @@ public struct RowIndex : Comparable {
 protocol RowImpl {
     var count: Int { get }
     var isFetched: Bool { get }
+    func containsNonNullValues(at indexes: IndexSet) -> Bool // TODO: test
     func databaseValue(atUncheckedIndex index: Int) -> DatabaseValue
     func dataNoCopy(atUncheckedIndex index:Int) -> Data?
     func columnName(atUncheckedIndex index: Int) -> String
@@ -871,6 +881,10 @@ private struct ArrayRowImpl : RowImpl {
     
     var isFetched: Bool {
         return false
+    }
+    
+    func containsNonNullValues(at indexes: IndexSet) -> Bool {
+        return !indexes.contains { columns[$0].1.isNull }
     }
     
     func dataNoCopy(atUncheckedIndex index:Int) -> Data? {
@@ -923,6 +937,10 @@ private struct StatementCopyRowImpl : RowImpl {
     
     var isFetched: Bool {
         return true
+    }
+    
+    func containsNonNullValues(at indexes: IndexSet) -> Bool {
+        return !indexes.contains { dbValues[$0].isNull }
     }
     
     func dataNoCopy(atUncheckedIndex index:Int) -> Data? {
@@ -980,6 +998,16 @@ private struct StatementRowImpl : RowImpl {
         return true
     }
     
+    func containsNonNullValues(at indexes: IndexSet) -> Bool {
+        for index in indexes {
+            // Avoid extracting values, because this modifies the statement.
+            if sqlite3_column_type(sqliteStatement, Int32(index)) != SQLITE_NULL {
+                return true
+            }
+        }
+        return false
+    }
+    
     func dataNoCopy(atUncheckedIndex index:Int) -> Data? {
         guard sqlite3_column_type(sqliteStatement, Int32(index)) != SQLITE_NULL else {
             return nil
@@ -1029,6 +1057,10 @@ private struct EmptyRowImpl : RowImpl {
     }
     
     var isFetched: Bool {
+        return false
+    }
+    
+    func containsNonNullValues(at indexes: IndexSet) -> Bool {
         return false
     }
     

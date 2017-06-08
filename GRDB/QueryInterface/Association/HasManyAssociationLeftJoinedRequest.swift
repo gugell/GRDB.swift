@@ -98,7 +98,6 @@ extension HasManyAssociation.LeftJoinedRequest : TypedRequest {
     }
 }
 
-// TODO: are those API useful?
 extension HasManyAssociation.LeftJoinedRequest where Left: RowConvertible, Right: RowConvertible {
     public func fetchCursor(_ db: Database) throws -> DatabaseCursor<(Left, Right?)> {
         return try LeftJoinedPair<Left, Right>.fetchCursor(db, self)
@@ -126,12 +125,11 @@ extension LeftJoinedPair {
         return statement.cursor(arguments: arguments, next: {
             let left = Left(row: row.scoped(on: "left")!)
             let rightRow = row.scoped(on: "right")!
-            let nullRightRow = !rightRow.databaseValues.contains { !$0.isNull }
-            if nullRightRow {
-                return (left, nil)
-            } else {
-                let right = Right(row: row.scoped(on: "right")!)
+            if rightRow.containsNonNullValues {
+                let right = Right(row: rightRow)
                 return (left, right)
+            } else {
+                return (left, nil)
             }
         })
     }
