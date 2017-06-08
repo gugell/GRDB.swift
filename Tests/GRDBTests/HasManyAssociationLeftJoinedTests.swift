@@ -11,6 +11,7 @@ class HasManyAssociationLeftJoinedTests: GRDBTestCase {
     
     // TODO: tests for left implicit row id, and compound keys
     // TODO: test fetchOne, fetchCursor
+    // TODO: test sql snippets with table aliases
     
     func testSimplestRequest() throws {
         struct Child : TableMapping, RowConvertible {
