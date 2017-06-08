@@ -1,30 +1,9 @@
 public struct BelongsToAssociation<Left: TableMapping, Right: TableMapping> {
-    enum MappingDefinition {
-        case inferred
-        case leftColumns([String])
-        // TODO: fully qualified foreign key
-        
-        var columnMappingRequest: ColumnMappingRequest {
-            switch self {
-            case .inferred:
-                return ColumnMappingRequest(
-                    originTable: Left.databaseTableName,
-                    destinationTable: Right.databaseTableName)
-                
-            case .leftColumns(let leftColumns):
-                return ColumnMappingRequest(
-                    originTable: Left.databaseTableName,
-                    destinationTable: Right.databaseTableName,
-                    originColumns: leftColumns)
-            }
-        }
-    }
-    
-    let mappingDefinition: MappingDefinition
+    let columnMappingRequest: ColumnMappingRequest
     var rightRequest: QueryInterfaceRequest<Right>
     
     func mapping(_ db: Database) throws -> [(left: String, right: String)] {
-        let matchingColumnMappings = try mappingDefinition.columnMappingRequest.fetchAll(db)
+        let matchingColumnMappings = try columnMappingRequest.fetchAll(db)
         switch matchingColumnMappings.count {
         case 0:
             fatalError("Could not infer foreign key from \(Left.databaseTableName) to \(Right.databaseTableName)")
@@ -38,7 +17,7 @@ public struct BelongsToAssociation<Left: TableMapping, Right: TableMapping> {
 
 extension BelongsToAssociation {
     private func updatingRightRequest(_ transform: (QueryInterfaceRequest<Right>) -> QueryInterfaceRequest<Right>) -> BelongsToAssociation<Left, Right> {
-        return BelongsToAssociation(mappingDefinition: mappingDefinition, rightRequest: transform(self.rightRequest))
+        return BelongsToAssociation(columnMappingRequest: columnMappingRequest, rightRequest: transform(self.rightRequest))
     }
     
     public func select(_ selection: SQLSelectable...) -> BelongsToAssociation<Left, Right> {
@@ -108,15 +87,22 @@ extension BelongsToAssociation {
 
 extension TableMapping {
     public static func belongsTo<Right>(_ right: Right.Type) -> BelongsToAssociation<Self, Right> where Right: TableMapping {
-        return BelongsToAssociation(mappingDefinition: .inferred, rightRequest: Right.all())
+        let columnMappingRequest = ColumnMappingRequest(
+            originTable: databaseTableName,
+            destinationTable: Right.databaseTableName)
+        return BelongsToAssociation(columnMappingRequest: columnMappingRequest, rightRequest: Right.all())
     }
     
     public static func belongsTo<Right>(_ right: Right.Type, from column: String) -> BelongsToAssociation<Self, Right> where Right: TableMapping {
-        return BelongsToAssociation(mappingDefinition: .leftColumns([column]), rightRequest: Right.all())
+        let columnMappingRequest = ColumnMappingRequest(
+            originTable: databaseTableName,
+            destinationTable: Right.databaseTableName,
+            originColumns: [column])
+        return BelongsToAssociation(columnMappingRequest: columnMappingRequest, rightRequest: Right.all())
     }
     
-    // TODO: multiple right columns
-    // TODO: fully qualified foreign key (left + right columns)
+    // TODO: multiple right columns in columnMappingRequest
+    // TODO: fully qualified foreign key (left + right columns) in columnMappingRequest
 }
 
 extension BelongsToAssociation where Left: MutablePersistable {

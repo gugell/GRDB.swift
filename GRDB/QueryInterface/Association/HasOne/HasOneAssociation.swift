@@ -1,30 +1,9 @@
 public struct HasOneAssociation<Left: TableMapping, Right: TableMapping> {
-    enum MappingDefinition {
-        case inferred
-        case rightColumns([String])
-        // TODO: fully qualified foreign key
-        
-        var columnMappingRequest: ColumnMappingRequest {
-            switch self {
-            case .inferred:
-                return ColumnMappingRequest(
-                    originTable: Right.databaseTableName,
-                    destinationTable: Left.databaseTableName)
-                
-            case .rightColumns(let rightColumns):
-                return ColumnMappingRequest(
-                    originTable: Right.databaseTableName,
-                    destinationTable: Left.databaseTableName,
-                    destinationColumns: rightColumns)
-            }
-        }
-    }
-    
-    let mappingDefinition: MappingDefinition
+    let columnMappingRequest: ColumnMappingRequest
     var rightRequest: QueryInterfaceRequest<Right>
     
     func mapping(_ db: Database) throws -> [(left: String, right: String)] {
-        let matchingColumnMappings = try mappingDefinition.columnMappingRequest.fetchAll(db)
+        let matchingColumnMappings = try columnMappingRequest.fetchAll(db)
         switch matchingColumnMappings.count {
         case 0:
             fatalError("Could not infer foreign key from \(Right.databaseTableName) to \(Left.databaseTableName)")
@@ -38,7 +17,7 @@ public struct HasOneAssociation<Left: TableMapping, Right: TableMapping> {
 
 extension HasOneAssociation {
     private func updatingRightRequest(_ transform: (QueryInterfaceRequest<Right>) -> QueryInterfaceRequest<Right>) -> HasOneAssociation<Left, Right> {
-        return HasOneAssociation(mappingDefinition: mappingDefinition, rightRequest: transform(self.rightRequest))
+        return HasOneAssociation(columnMappingRequest: columnMappingRequest, rightRequest: transform(self.rightRequest))
     }
     
     public func select(_ selection: SQLSelectable...) -> HasOneAssociation<Left, Right> {
@@ -108,11 +87,18 @@ extension HasOneAssociation {
 
 extension TableMapping {
     public static func hasOne<Right>(_ right: Right.Type) -> HasOneAssociation<Self, Right> where Right: TableMapping {
-        return HasOneAssociation(mappingDefinition: .inferred, rightRequest: Right.all())
+        let columnMappingRequest = ColumnMappingRequest(
+            originTable: Right.databaseTableName,
+            destinationTable: databaseTableName)
+        return HasOneAssociation(columnMappingRequest: columnMappingRequest, rightRequest: Right.all())
     }
     
     public static func hasOne<Right>(_ right: Right.Type, from column: String) -> HasOneAssociation<Self, Right> where Right: TableMapping {
-        return HasOneAssociation(mappingDefinition: .rightColumns([column]), rightRequest: Right.all())
+        let columnMappingRequest = ColumnMappingRequest(
+            originTable: Right.databaseTableName,
+            destinationTable: databaseTableName,
+            originColumns: [column])
+        return HasOneAssociation(columnMappingRequest: columnMappingRequest, rightRequest: Right.all())
     }
     
     // TODO: multiple right columns
