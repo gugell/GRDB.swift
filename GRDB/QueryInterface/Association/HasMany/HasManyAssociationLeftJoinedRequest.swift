@@ -95,8 +95,8 @@ extension HasManyAssociation.LeftJoinedRequest : TypedRequest {
             .leftJoin(
                 association.rightRequest.query,
                 mapping: association.mapping(db),
-                leftScope: LeftJoinedPairScope.left.rawValue,
-                rightScope: LeftJoinedPairScope.right.rawValue)
+                leftScope: JoinedPairScope.left.rawValue,
+                rightScope: JoinedPairScope.right.rawValue)
             .prepare(db)
     }
 }
