@@ -79,7 +79,6 @@ struct QueryInterfaceSelectQueryDefinition {
         return join(rightQuery, mapping: mapping, leftScope: leftScope, rightScope: rightScope, operator: .leftJoin)
     }
     
-    // TODO: fix signature, it's ugly
     private func join(_ rightQuery: QueryInterfaceSelectQueryDefinition, mapping: [(left: String, right: String)], leftScope: String, rightScope: String, operator joinOp: SQLJoinOperator) -> QueryInterfaceSelectQueryDefinition {
         // Left constraints
         GRDBPrecondition(groupByExpressions.isEmpty, "Can't join from query with GROUP BY expression")
