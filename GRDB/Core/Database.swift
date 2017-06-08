@@ -1350,7 +1350,7 @@ extension Database {
         return foreignKeys.map { (destinationTable, columnMapping) -> ForeignKeyInfo in
             ForeignKeyInfo(
                 destinationTable: destinationTable,
-                columnMapping: columnMapping
+                mapping: columnMapping
                     .sorted { $0.seq < $1.seq }
                     .map { (origin: $0.origin, destination: $0 .destination) })
         }
@@ -1498,18 +1498,83 @@ public struct ForeignKeyInfo {
     public let destinationTable: String
     
     /// TODO
-    public let columnMapping: [(origin: String, destination: String)]
+    public let mapping: [(origin: String, destination: String)]
     
     /// TODO
     public var originColumns: [String] {
-        return columnMapping.map { $0.origin }
+        return mapping.map { $0.origin }
     }
     
     /// TODO
     public var destinationColumns: [String] {
-        return columnMapping.map { $0.destination }
+        return mapping.map { $0.destination }
     }
 }
+
+struct ColumnMappingRequest {
+    let originTable: String
+    let destinationTable: String
+    let originColumns: [String]?
+    let destinationColumns: [String]?
+    
+    init(originTable: String, destinationTable: String, originColumns: [String]? = nil, destinationColumns: [String]? = nil) {
+        self.originTable = originTable
+        self.destinationTable = destinationTable
+        self.originColumns = originColumns
+        self.destinationColumns = destinationColumns
+    }
+    
+    func fetchAll(_ db: Database) throws -> [[(origin: String, destination: String)]] {
+        if let originColumns = originColumns, let destinationColumns = destinationColumns {
+            GRDBPrecondition(originColumns.count == destinationColumns.count, "Number of columns don't match")
+            return [zip(originColumns, destinationColumns).map {
+                (origin: $0, destination: $1)
+            }]
+        }
+        
+        let foreignKeys = try db.foreignKeys(originTable).filter { foreignKey in
+            if destinationTable.lowercased() != foreignKey.destinationTable.lowercased() {
+                return false
+            }
+            if let originColumns = originColumns {
+                let originColumns = Set(originColumns.lazy.map { $0.lowercased() })
+                let foreignKeyColumns = Set(foreignKey.mapping.lazy.map { $0.origin.lowercased() })
+                if originColumns != foreignKeyColumns {
+                    return false
+                }
+            }
+            if let destinationColumns = destinationColumns {
+                let destinationColumns = Set(destinationColumns.lazy.map { $0.lowercased() })
+                let foreignKeyColumns = Set(foreignKey.mapping.lazy.map { $0.destination.lowercased() })
+                if destinationColumns != foreignKeyColumns {
+                    return false
+                }
+            }
+            return true
+        }
+        
+        guard foreignKeys.isEmpty else {
+            return foreignKeys.map { $0.mapping }
+        }
+        
+        if let originColumns = originColumns {
+            let destinationColumns: [String]
+            if let primaryKey = try db.primaryKey(destinationTable) {
+                destinationColumns = primaryKey.columns
+            } else {
+                destinationColumns = [Column.rowID.name]
+            }
+            if (originColumns.count == destinationColumns.count) {
+                return [zip(originColumns, destinationColumns).map {
+                    (origin: $0, destination: $1)
+                }]
+            }
+        }
+        
+        return []
+    }
+}
+
 
 // =========================================================================
 // MARK: - StatementCompilationObserver

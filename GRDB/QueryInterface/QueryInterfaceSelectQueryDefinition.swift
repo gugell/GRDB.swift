@@ -71,16 +71,16 @@ struct QueryInterfaceSelectQueryDefinition {
             limit: limit)
     }
     
-    func join(_ rightQuery: QueryInterfaceSelectQueryDefinition, on foreignKey: ForeignKeyInfo, leftScope: String, rightScope: String) -> QueryInterfaceSelectQueryDefinition {
-        return join(rightQuery, on: foreignKey, leftScope: leftScope, rightScope: rightScope, operator: .join)
+    func join(_ rightQuery: QueryInterfaceSelectQueryDefinition, mapping: [(left: String, right: String)], leftScope: String, rightScope: String) -> QueryInterfaceSelectQueryDefinition {
+        return join(rightQuery, mapping: mapping, leftScope: leftScope, rightScope: rightScope, operator: .join)
     }
     
-    func leftJoin(_ rightQuery: QueryInterfaceSelectQueryDefinition, on foreignKey: ForeignKeyInfo, leftScope: String, rightScope: String) -> QueryInterfaceSelectQueryDefinition {
-        return join(rightQuery, on: foreignKey, leftScope: leftScope, rightScope: rightScope, operator: .leftJoin)
+    func leftJoin(_ rightQuery: QueryInterfaceSelectQueryDefinition, mapping: [(left: String, right: String)], leftScope: String, rightScope: String) -> QueryInterfaceSelectQueryDefinition {
+        return join(rightQuery, mapping: mapping, leftScope: leftScope, rightScope: rightScope, operator: .leftJoin)
     }
     
     // TODO: fix signature, it's ugly
-    private func join(_ rightQuery: QueryInterfaceSelectQueryDefinition, on foreignKey: ForeignKeyInfo, leftScope: String, rightScope: String, operator joinOp: SQLJoinOperator) -> QueryInterfaceSelectQueryDefinition {
+    private func join(_ rightQuery: QueryInterfaceSelectQueryDefinition, mapping: [(left: String, right: String)], leftScope: String, rightScope: String, operator joinOp: SQLJoinOperator) -> QueryInterfaceSelectQueryDefinition {
         // Left constraints
         GRDBPrecondition(groupByExpressions.isEmpty, "Can't join from query with GROUP BY expression")
         GRDBPrecondition(havingExpression == nil, "Can't join from query with GROUP BY expression")
@@ -110,7 +110,7 @@ struct QueryInterfaceSelectQueryDefinition {
             leftSource: leftSource,
             rightSource: rightSource,
             onExpression: rightQuery.whereExpression,
-            foreignKey: foreignKey))
+            mapping: mapping))
         
         // Gather orderings
         let joinedOrderings = leftQuery.eventuallyReversedOrderings + rightQuery.eventuallyReversedOrderings
@@ -316,7 +316,7 @@ indirect enum SQLSource {
         let leftSource: SQLSource
         let rightSource: SQLSource
         let onExpression: ((Database) throws -> SQLExpression)?
-        let foreignKey: ForeignKeyInfo
+        let mapping: [(left: String, right: String)]
         
         func qualified(by qualifier: SQLSourceQualifier) -> JoinDefinition {
             return JoinDefinition(
@@ -324,7 +324,7 @@ indirect enum SQLSource {
                 leftSource: leftSource.qualified(by: qualifier),
                 rightSource: rightSource,
                 onExpression: onExpression,
-                foreignKey: foreignKey)
+                mapping: mapping)
         }
         
         func sourceSQL(_ db: Database, _ arguments: inout StatementArguments?) throws -> String {
@@ -338,11 +338,11 @@ indirect enum SQLSource {
             let leftQualifier = leftSource.qualifier!
             let rightQualifier = rightSource.qualifier!
             
-            var onClauses = foreignKey.columnMapping
-                .map { (rightColumn, leftColumn) -> SQLExpression in
+            var onClauses = mapping
+                .map { arrow -> SQLExpression in
                     // right.leftId == left.id
-                    let leftColumn = Column(leftColumn).qualified(by: leftQualifier)
-                    let rightColumn = Column(rightColumn).qualified(by: rightQualifier)
+                    let leftColumn = Column(arrow.left).qualified(by: leftQualifier)
+                    let rightColumn = Column(arrow.right).qualified(by: rightQualifier)
                     return (rightColumn == leftColumn) }
             
             if let onExpression = try self.onExpression?(db) {

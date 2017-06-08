@@ -89,7 +89,7 @@ extension HasManyAssociation.IncludingRequest {
 
 extension HasManyAssociation.IncludingRequest where Left: RowConvertible, Right: RowConvertible {
     public func fetchAll(_ db: Database) throws -> [(Left, [Right])] {
-        let foreignKey = try association.foreignKey(db)
+        let mapping = try association.mapping(db)
         var result: [(Left, [Right])] = []
         var leftKeys: [RowValue] = []
         var resultIndexes : [RowValue: Int] = [:]
@@ -97,11 +97,11 @@ extension HasManyAssociation.IncludingRequest where Left: RowConvertible, Right:
         // SELECT * FROM left...
         do {
             let cursor = try Row.fetchCursor(db, leftRequest)
-            let foreignKeyIndexes = foreignKey.destinationColumns.map { leftColumn -> Int in
-                if let index = cursor.statementIndex(ofColumn: leftColumn) {
+            let foreignKeyIndexes = mapping.map { arrow -> Int in
+                if let index = cursor.statementIndex(ofColumn: arrow.left) {
                     return index
                 } else {
-                    fatalError("Column \(Left.databaseTableName).\(leftColumn) is not selected")
+                    fatalError("Column \(Left.databaseTableName).\(arrow.left) is not selected")
                 }
             }
             let enumeratedCursor = cursor.enumerated()
@@ -126,19 +126,19 @@ extension HasManyAssociation.IncludingRequest where Left: RowConvertible, Right:
             // TODO: Raw SQL snippets may be used to involve left and right columns at
             // the same time: consider joins.
             let rightRequest: QueryInterfaceRequest<Right>
-            if foreignKey.columnMapping.count == 1 {
+            if mapping.count == 1 {
                 let leftKeyValues = leftKeys.lazy.map { $0.dbValues[0] }
-                let rightColumn = foreignKey.columnMapping[0].origin
+                let rightColumn = mapping[0].right
                 rightRequest = association.rightRequest.filter(leftKeyValues.contains(Column(rightColumn)))
             } else {
                 fatalError("not implemented")
             }
             let cursor = try Row.fetchCursor(db, rightRequest)
-            let foreignKeyIndexes = foreignKey.originColumns.map { rightColumn -> Int in
-                if let index = cursor.statementIndex(ofColumn: rightColumn) {
+            let foreignKeyIndexes = mapping.map { arrow -> Int in
+                if let index = cursor.statementIndex(ofColumn: arrow.right) {
                     return index
                 } else {
-                    fatalError("Column \(Right.databaseTableName).\(rightColumn) is not selected")
+                    fatalError("Column \(Right.databaseTableName).\(arrow.right) is not selected")
                 }
             }
             while let row = try cursor.next() {

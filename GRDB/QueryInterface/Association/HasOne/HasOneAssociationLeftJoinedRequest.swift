@@ -94,7 +94,7 @@ extension HasOneAssociation.LeftJoinedRequest : TypedRequest {
         return try leftRequest.query
             .leftJoin(
                 association.rightRequest.query,
-                on: association.foreignKey(db),
+                mapping: association.mapping(db),
                 leftScope: LeftJoinedPairScope.left.rawValue,
                 rightScope: LeftJoinedPairScope.right.rawValue)
             .prepare(db)
