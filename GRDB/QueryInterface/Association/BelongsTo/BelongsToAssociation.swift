@@ -131,7 +131,7 @@ extension BelongsToAssociation where Left: MutablePersistable {
 }
 
 extension MutablePersistable {
-    public func fetch<Fetched>(_ db: Database, _ association: BelongsToAssociation<Self, Fetched>) throws -> Fetched? where Fetched: TableMapping & RowConvertible {
+    public func fetchOne<Fetched>(_ db: Database, _ association: BelongsToAssociation<Self, Fetched>) throws -> Fetched? where Fetched: TableMapping & RowConvertible {
         return try association.owning(self).fetchOne(db)
     }
 }

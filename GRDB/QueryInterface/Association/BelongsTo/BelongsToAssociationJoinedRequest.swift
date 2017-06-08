@@ -88,7 +88,7 @@ extension BelongsToAssociation.JoinedRequest {
 }
 
 extension BelongsToAssociation.JoinedRequest : TypedRequest {
-    public typealias Fetched = (Left, Right)
+    public typealias Fetched = JoinedPair<Left, Right, InnerJoinKind>
     
     public func prepare(_ db: Database) throws -> (SelectStatement, RowAdapter?) {
         return try leftRequest.query
@@ -101,16 +101,17 @@ extension BelongsToAssociation.JoinedRequest : TypedRequest {
     }
 }
 
+// TODO: write this as an extension of TypedRequest when Swift makes it possible.
 extension BelongsToAssociation.JoinedRequest where Left: RowConvertible, Right: RowConvertible {
     public func fetchCursor(_ db: Database) throws -> DatabaseCursor<(Left, Right)> {
-        return try JoinedPair<Left, Right>.fetchCursor(db, self)
+        return try JoinedPair<Left, Right, InnerJoinKind>.fetchCursor(db, self)
     }
     
     public func fetchAll(_ db: Database) throws -> [(Left, Right)] {
-        return try JoinedPair<Left, Right>.fetchAll(db, self)
+        return try JoinedPair<Left, Right, InnerJoinKind>.fetchAll(db, self)
     }
     
     public func fetchOne(_ db: Database) throws -> (Left, Right)? {
-        return try JoinedPair<Left, Right>.fetchOne(db, self)
+        return try JoinedPair<Left, Right, InnerJoinKind>.fetchOne(db, self)
     }
 }

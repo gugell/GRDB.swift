@@ -1,76 +1,23 @@
-struct ColumnMappingRequest {
-    let originTable: String
-    let destinationTable: String
-    let originColumns: [String]?
-    let destinationColumns: [String]?
-    
-    init(originTable: String, destinationTable: String, originColumns: [String]? = nil, destinationColumns: [String]? = nil) {
-        self.originTable = originTable
-        self.destinationTable = destinationTable
-        self.originColumns = originColumns
-        self.destinationColumns = destinationColumns
-    }
-    
-    func fetchAll(_ db: Database) throws -> [[(origin: String, destination: String)]] {
-        if let originColumns = originColumns, let destinationColumns = destinationColumns {
-            GRDBPrecondition(originColumns.count == destinationColumns.count, "Number of columns don't match")
-            return [zip(originColumns, destinationColumns).map {
-                (origin: $0, destination: $1)
-                }]
-        }
-        
-        let foreignKeys = try db.foreignKeys(originTable).filter { foreignKey in
-            if destinationTable.lowercased() != foreignKey.destinationTable.lowercased() {
-                return false
-            }
-            if let originColumns = originColumns {
-                let originColumns = Set(originColumns.lazy.map { $0.lowercased() })
-                let foreignKeyColumns = Set(foreignKey.mapping.lazy.map { $0.origin.lowercased() })
-                if originColumns != foreignKeyColumns {
-                    return false
-                }
-            }
-            if let destinationColumns = destinationColumns {
-                let destinationColumns = Set(destinationColumns.lazy.map { $0.lowercased() })
-                let foreignKeyColumns = Set(foreignKey.mapping.lazy.map { $0.destination.lowercased() })
-                if destinationColumns != foreignKeyColumns {
-                    return false
-                }
-            }
-            return true
-        }
-        
-        guard foreignKeys.isEmpty else {
-            return foreignKeys.map { $0.mapping }
-        }
-        
-        if let originColumns = originColumns {
-            let destinationColumns: [String]
-            if let primaryKey = try db.primaryKey(destinationTable) {
-                destinationColumns = primaryKey.columns
-            } else {
-                destinationColumns = [Column.rowID.name]
-            }
-            if (originColumns.count == destinationColumns.count) {
-                return [zip(originColumns, destinationColumns).map {
-                    (origin: $0, destination: $1)
-                    }]
-            }
-        }
-        
-        return []
-    }
-}
+/// Types that adopt this protocol qualify the JoinedPair type, which in turns
+/// knows which kind of SQL join should be generated when it is fetched.
+public protocol JoinKind { }
+public enum LeftJoinKind : JoinKind { }
+public enum InnerJoinKind : JoinKind { }
 
+/// The scopes used to consume left and right parts of a joined pair.
 enum JoinedPairScope : String {
     case left
     case right
 }
 
-struct JoinedPair<Left: RowConvertible, Right: RowConvertible> {
-}
+/// The definition of the results of a joined query: (Left, Right) for inner
+/// joins, and (Left, Right?) for left joins.
+public struct JoinedPair<Left, Right, Join: JoinKind> { }
 
-extension JoinedPair {
+
+// MARK: - Inner Joinds
+
+extension JoinedPair where Left: RowConvertible, Right: RowConvertible, Join == InnerJoinKind {
     
     // MARK: Fetching From SelectStatement
     
@@ -97,7 +44,7 @@ extension JoinedPair {
     }
 }
 
-extension JoinedPair {
+extension JoinedPair where Left: RowConvertible, Right: RowConvertible, Join == InnerJoinKind {
     
     // MARK: Fetching From Request
     
@@ -117,10 +64,10 @@ extension JoinedPair {
     }
 }
 
-struct LeftJoinedPair<Left: RowConvertible, Right: RowConvertible> {
-}
 
-extension LeftJoinedPair {
+// MARK: - Left Joins
+
+extension JoinedPair where Left: RowConvertible, Right: RowConvertible, Join == LeftJoinKind {
     
     // MARK: Fetching From SelectStatement
     
@@ -147,7 +94,7 @@ extension LeftJoinedPair {
     }
 }
 
-extension LeftJoinedPair {
+extension JoinedPair where Left: RowConvertible, Right: RowConvertible, Join == LeftJoinKind {
     
     // MARK: Fetching From Request
     
