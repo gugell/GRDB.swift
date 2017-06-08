@@ -329,6 +329,9 @@ public final class DatabaseCursor<Element> : Cursor {
     
     /// The index of the leftmost column named `name`, in a
     /// case-insensitive way.
+    ///
+    ///     let cursor = try Row.fetchCursor(db, "SELECT a, b FROM t")
+    ///     cursor.statementIndex(ofColumn: "b") // 1
     func statementIndex(ofColumn column: String) -> Int? {
         return statement.index(ofColumn: column)
     }
