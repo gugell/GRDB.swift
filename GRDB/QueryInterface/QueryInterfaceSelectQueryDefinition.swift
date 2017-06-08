@@ -21,7 +21,8 @@ struct QueryInterfaceSelectQueryDefinition {
         orderBy orderings: [SQLOrderingTerm] = [],
         isReversed: Bool = false,
         having havingExpression: SQLExpression? = nil,
-        limit: SQLLimit? = nil)
+        limit: SQLLimit? = nil,
+        adapter: ((Database) throws -> RowAdapter)? = nil)
     {
         self.selection = selection
         self.isDistinct = isDistinct
@@ -32,7 +33,7 @@ struct QueryInterfaceSelectQueryDefinition {
         self.isReversed = isReversed
         self.havingExpression = havingExpression
         self.limit = limit
-        self.adapter = nil
+        self.adapter = adapter
     }
     
     func numberOfColumns(_ db: Database) throws -> Int {
@@ -70,47 +71,72 @@ struct QueryInterfaceSelectQueryDefinition {
             limit: limit)
     }
     
+    func join(_ rightQuery: QueryInterfaceSelectQueryDefinition, on foreignKey: ForeignKeyInfo, leftScope: String, rightScope: String) -> QueryInterfaceSelectQueryDefinition {
+        return join(rightQuery, on: foreignKey, leftScope: leftScope, rightScope: rightScope, operator: .join)
+    }
+    
+    func leftJoin(_ rightQuery: QueryInterfaceSelectQueryDefinition, on foreignKey: ForeignKeyInfo, leftScope: String, rightScope: String) -> QueryInterfaceSelectQueryDefinition {
+        return join(rightQuery, on: foreignKey, leftScope: leftScope, rightScope: rightScope, operator: .leftJoin)
+    }
+    
     // TODO: fix signature, it's ugly
-    func joined(_ op: SQLJoinOperator, _ rightQuery: QueryInterfaceSelectQueryDefinition, on foreignKey: ForeignKeyInfo) -> QueryInterfaceSelectQueryDefinition {
+    private func join(_ rightQuery: QueryInterfaceSelectQueryDefinition, on foreignKey: ForeignKeyInfo, leftScope: String, rightScope: String, operator joinOp: SQLJoinOperator) -> QueryInterfaceSelectQueryDefinition {
+        // Left constraints
+        GRDBPrecondition(groupByExpressions.isEmpty, "Can't join from query with GROUP BY expression")
+        GRDBPrecondition(havingExpression == nil, "Can't join from query with GROUP BY expression")
+        GRDBPrecondition(adapter == nil, "Support for left row adapter is not implemented")
+        
+        // Right constraints
+        GRDBPrecondition(!rightQuery.isDistinct, "Can't join with distinct query")
+        GRDBPrecondition(rightQuery.groupByExpressions.isEmpty, "Can't join with query with GROUP BY expression")
+        GRDBPrecondition(rightQuery.havingExpression == nil, "Can't join with query with GROUP BY expression")
+        GRDBPrecondition(rightQuery.limit == nil, "Can't join with query with limit")
+        GRDBPrecondition(rightQuery.adapter == nil, "Support for right row adapter is not implemented")
+
         // SELECT * FROM left ... -> SELECT left.* FROM left ...
-        let leftQuery = self.qualified(by: SQLSourceQualifier(alias: "left")) // we'll be smarter later
+        let leftQuery = self.qualified(by: SQLSourceQualifier(alias: "left")) // table alias: we'll be smarter later
 
         // SELECT * FROM right ... -> SELECT right.* FROM right ...
-        let rightQuery = rightQuery.qualified(by: SQLSourceQualifier(alias: "right")) // we'll be smarter later
+        let rightQuery = rightQuery.qualified(by: SQLSourceQualifier(alias: "right")) // table alias: we'll be smarter later
         
         // Gather selections
         let joinedSelection = leftQuery.selection + rightQuery.selection
         
         // Join sources
-        guard let leftSource = leftQuery.source else { fatalError("Join requires a left source") }
-        guard let rightSource = rightQuery.source else { fatalError("Join requires a right source") }
-        let joinedSource = SQLSource.joined(
-            op: op,
+        guard let leftSource = leftQuery.source else { fatalError("Support for sourceless joins is not implemented") }
+        guard let rightSource = rightQuery.source else { fatalError("Support for sourceless joins is not implemented") }
+        let joinedSource = SQLSource.joined(SQLSource.JoinDefinition(
+            joinOp: joinOp,
             leftSource: leftSource,
-            rightQuery: JoinedRightQuery(source: rightSource, onExpression: rightQuery.whereExpression),
-            foreignKey: foreignKey)
+            rightSource: rightSource,
+            onExpression: rightQuery.whereExpression,
+            foreignKey: foreignKey))
         
         // Gather orderings
         let joinedOrderings = leftQuery.eventuallyReversedOrderings + rightQuery.eventuallyReversedOrderings
         
-        // TODO: take care of distinct
-        // TODO: take care of group/having
-        // TODO: take care of limit
-        
-        // Result
-        var joinedQuery = leftQuery
-        joinedQuery.selection = joinedSelection
-        joinedQuery.source = joinedSource
-        joinedQuery.orderings = joinedOrderings
-        joinedQuery.isReversed = false
-        joinedQuery.adapter = { db in
+        // Define row scopes
+        let joinedAdapter = { (db: Database) -> RowAdapter in
             let leftCount = try leftQuery.numberOfColumns(db)
             let rightCount = try rightQuery.numberOfColumns(db)
             return ScopeAdapter([
-                "left": RangeRowAdapter(0..<leftCount),
-                "right": RangeRowAdapter(leftCount..<(leftCount + rightCount))])
+                // Left columns start at index 0
+                leftScope: RangeRowAdapter(0..<leftCount),
+                // Right columns start after left columns
+                rightScope: RangeRowAdapter(leftCount..<(leftCount + rightCount))])
         }
-        return joinedQuery
+        
+        return QueryInterfaceSelectQueryDefinition(
+            select: joinedSelection,
+            isDistinct: leftQuery.isDistinct, // TODO: test
+            from: joinedSource,
+            filter: leftQuery.whereExpression,
+            groupBy: [],
+            orderBy: joinedOrderings,
+            isReversed: false,
+            having: nil,
+            limit: leftQuery.limit, // TODO: test
+            adapter: joinedAdapter)
     }
     
     func makeDeleteStatement(_ db: Database) throws -> UpdateStatement {
@@ -186,7 +212,7 @@ extension QueryInterfaceSelectQueryDefinition : Request {
             sql += " HAVING " + havingExpression.expressionSQL(&arguments)
         }
         
-        var orderings = self.eventuallyReversedOrderings
+        let orderings = self.eventuallyReversedOrderings
         if !orderings.isEmpty {
             sql += " ORDER BY " + orderings.map { $0.orderingTermSQL(&arguments) }.joined(separator: ", ")
         }
@@ -280,21 +306,64 @@ enum SQLJoinOperator : String {
     case leftJoin = "LEFT JOIN"
 }
 
-struct JoinedRightQuery {
-    let source: SQLSource
-    let onExpression: ((Database) throws -> SQLExpression)?
-}
-
 indirect enum SQLSource {
     case table(name: String, qualifier: SQLSourceQualifier?)
     case query(query: QueryInterfaceSelectQueryDefinition, qualifier: SQLSourceQualifier?)
-    case joined(op: SQLJoinOperator, leftSource: SQLSource, rightQuery: JoinedRightQuery, foreignKey: ForeignKeyInfo)
+    case joined(JoinDefinition)
+    
+    struct JoinDefinition {
+        let joinOp: SQLJoinOperator
+        let leftSource: SQLSource
+        let rightSource: SQLSource
+        let onExpression: ((Database) throws -> SQLExpression)?
+        let foreignKey: ForeignKeyInfo
+        
+        func qualified(by qualifier: SQLSourceQualifier) -> JoinDefinition {
+            return JoinDefinition(
+                joinOp: joinOp,
+                leftSource: leftSource.qualified(by: qualifier),
+                rightSource: rightSource,
+                onExpression: onExpression,
+                foreignKey: foreignKey)
+        }
+        
+        func sourceSQL(_ db: Database, _ arguments: inout StatementArguments?) throws -> String {
+            // left JOIN right ON ...
+            var sql = ""
+            sql += try leftSource.sourceSQL(db, &arguments)
+            sql += " \(joinOp.rawValue) "
+            sql += try rightSource.sourceSQL(db, &arguments)
+            
+            // We're generating sql: sources must have been qualified by now
+            let leftQualifier = leftSource.qualifier!
+            let rightQualifier = rightSource.qualifier!
+            
+            var onClauses = foreignKey.columnMapping
+                .map { (rightColumn, leftColumn) -> SQLExpression in
+                    // right.leftId == left.id
+                    let leftColumn = Column(leftColumn).qualified(by: leftQualifier)
+                    let rightColumn = Column(rightColumn).qualified(by: rightQualifier)
+                    return (rightColumn == leftColumn) }
+            
+            if let onExpression = try self.onExpression?(db) {
+                // right.name = 'foo'
+                onClauses.append(onExpression)
+            }
+            
+            if !onClauses.isEmpty {
+                let onClause = onClauses.suffix(from: 1).reduce(onClauses.first!, &&)
+                sql += " ON " + onClause.expressionSQL(&arguments)
+            }
+            
+            return sql
+        }
+    }
     
     var qualifier: SQLSourceQualifier? {
         switch self {
         case .table(_, let qualifier): return qualifier
         case .query(_, let qualifier): return qualifier
-        case .joined(_, let leftSource, _, _): return leftSource.qualifier
+        case .joined(let joinDef): return joinDef.leftSource.qualifier
         }
     }
     
@@ -312,30 +381,8 @@ indirect enum SQLSource {
             } else {
                 return try "(" + query.sql(db, &arguments) + ")"
             }
-        case .joined(let op, let leftSource, let rightQuery, let foreignKey):
-            // left JOIN right ON ...
-            var sql = ""
-            sql += try leftSource.sourceSQL(db, &arguments)
-            sql += " \(op.rawValue) "
-            sql += try rightQuery.source.sourceSQL(db, &arguments)
-            
-            let leftQualifier = leftSource.qualifier!
-            let rightQualifier = rightQuery.source.qualifier!
-            
-            var onClauses = foreignKey.columnMapping
-                .map { (rightColumn, leftColumn) -> SQLExpression in
-                    let leftColumn = Column(leftColumn).qualified(by: leftQualifier)
-                    let rightColumn = Column(rightColumn).qualified(by: rightQualifier)
-                    return (rightColumn == leftColumn) }
-            if let onExpression = try rightQuery.onExpression?(db) {
-                onClauses.append(onExpression)
-            }
-            if !onClauses.isEmpty {
-                let onClause = onClauses.suffix(from: 1).reduce(onClauses.first!, &&)
-                sql += " ON " + onClause.expressionSQL(&arguments)
-            }
-            
-            return sql
+        case .joined(let joinDef):
+            return try joinDef.sourceSQL(db, &arguments)
         }
     }
     
@@ -355,12 +402,8 @@ indirect enum SQLSource {
             } else {
                 return self
             }
-        case .joined(let op, let leftSource, let rightQuery, let foreignKey):
-            return .joined(
-                op: op,
-                leftSource: leftSource.qualified(by: qualifier),
-                rightQuery: rightQuery,
-                foreignKey: foreignKey)
+        case .joined(let joinDef):
+            return .joined(joinDef.qualified(by: qualifier))
         }
     }
 }

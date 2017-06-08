@@ -1,3 +1,5 @@
+private let leftScope = "left"
+private let rightScope = "right"
 
 extension HasManyAssociation {
     public struct JoinedRequest {
@@ -93,7 +95,11 @@ extension HasManyAssociation.JoinedRequest : TypedRequest {
     
     public func prepare(_ db: Database) throws -> (SelectStatement, RowAdapter?) {
         return try leftRequest.query
-            .joined(.join, association.rightRequest.query, on: association.foreignKey(db))
+            .join(
+                association.rightRequest.query,
+                on: association.foreignKey(db),
+                leftScope: leftScope,
+                rightScope: rightScope)
             .prepare(db)
     }
 }
@@ -123,8 +129,12 @@ extension JoinedPair {
         // Reuse a single mutable row for performance.
         let row = try Row(statement: statement).adapted(with: adapter, layout: statement)
         return statement.cursor(arguments: arguments, next: {
-            let left = Left(row: row.scoped(on: "left")!)
-            let right = Right(row: row.scoped(on: "right")!)
+            let leftRow = row.scoped(on: leftScope)!
+            let rightRow = row.scoped(on: rightScope)!
+            
+            let left = Left(row: leftRow)
+            let right = Right(row: rightRow)
+            
             return (left, right)
         })
     }
