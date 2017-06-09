@@ -88,63 +88,48 @@ struct AssociationFixture {
     }
 }
 
+// TODO: move into general GRDBTestCase
 extension GRDBTestCase {
-    func assertEqual<Left, Right>(_ pair: (left: Left, right: Right), _ expectedPair: (left: Left, right: Right), file: StaticString = #file, line: UInt = #line) where Left: MutablePersistable, Right: MutablePersistable {
-        assertEqual(pair.left, expectedPair.left, file: file, line: line)
-        assertEqual(pair.right, expectedPair.right, file: file, line: line)
+    func assertMatch<Left, Right>(_ pair: (Left, Right), _ expectedPair: (Row, Row), file: StaticString = #file, line: UInt = #line) where Left: MutablePersistable, Right: MutablePersistable {
+        assertMatch(pair.0, expectedPair.0, file: file, line: line)
+        assertMatch(pair.1, expectedPair.1, file: file, line: line)
     }
     
-    func assertEqual<Left, Right>(_ graph: [(left: Left, right: Right)], _ expectedGraph: [(left: Left, right: Right)], file: StaticString = #file, line: UInt = #line) where Left: MutablePersistable, Right: MutablePersistable {
+    func assertMatch<Left, Right>(_ graph: [(Left, Right)], _ expectedGraph: [(Row, Row)], file: StaticString = #file, line: UInt = #line) where Left: MutablePersistable, Right: MutablePersistable {
         XCTAssertEqual(graph.count, expectedGraph.count, file: file, line: line)
         for (pair, expectedPair) in zip(graph, expectedGraph) {
-            assertEqual(pair, expectedPair, file: file, line: line)
+            assertMatch(pair, expectedPair, file: file, line: line)
         }
     }
     
-    func assertEqual<Left, Right>(_ pair: (left: Left, right: Right?), _ expectedPair: (left: Left, right: Right?), file: StaticString = #file, line: UInt = #line) where Left: MutablePersistable, Right: MutablePersistable {
-        assertEqual(pair.left, expectedPair.left, file: file, line: line)
-        assertEqual(pair.right, expectedPair.right, file: file, line: line)
+    func assertMatch<Left, Right>(_ pair: (Left, Right?), _ expectedPair: (Row, Row?), file: StaticString = #file, line: UInt = #line) where Left: MutablePersistable, Right: MutablePersistable {
+        assertMatch(pair.0, expectedPair.0, file: file, line: line)
+        assertMatch(pair.1, expectedPair.1, file: file, line: line)
     }
     
-    func assertEqual<Left, Right>(_ graph: [(left: Left, right: Right?)], _ expectedGraph: [(left: Left, right: Right?)], file: StaticString = #file, line: UInt = #line) where Left: MutablePersistable, Right: MutablePersistable {
+    func assertMatch<Left, Right>(_ graph: [(Left, Right?)], _ expectedGraph: [(Row, Row?)], file: StaticString = #file, line: UInt = #line) where Left: MutablePersistable, Right: MutablePersistable {
         XCTAssertEqual(graph.count, expectedGraph.count, file: file, line: line)
         for (pair, expectedPair) in zip(graph, expectedGraph) {
-            assertEqual(pair, expectedPair, file: file, line: line)
+            assertMatch(pair, expectedPair, file: file, line: line)
         }
     }
     
-    func assertEqual<Left, Right>(_ pair: (left: Left, right: [Right]), _ expectedPair: (left: Left, right: [Right]), file: StaticString = #file, line: UInt = #line) where Left: MutablePersistable, Right: MutablePersistable {
-        assertEqual(pair.left, expectedPair.left, file: file, line: line)
-        assertEqual(pair.right, expectedPair.right, file: file, line: line)
+    func assertMatch<Left, Right>(_ pair: (Left, [Right]), _ expectedPair: (Row, [Row]), file: StaticString = #file, line: UInt = #line) where Left: MutablePersistable, Right: MutablePersistable {
+        assertMatch(pair.0, expectedPair.0, file: file, line: line)
+        assertMatch(pair.1, expectedPair.1, file: file, line: line)
     }
     
-    func assertEqual<Left, Right>(_ graph: [(left: Left, right: [Right])], _ expectedGraph: [(left: Left, right: [Right])], file: StaticString = #file, line: UInt = #line) where Left: MutablePersistable, Right: MutablePersistable {
+    func assertMatch<Left, Right>(_ graph: [(Left, [Right])], _ expectedGraph: [(Row, [Row])], file: StaticString = #file, line: UInt = #line) where Left: MutablePersistable, Right: MutablePersistable {
         XCTAssertEqual(graph.count, expectedGraph.count, file: file, line: line)
         for (pair, expectedPair) in zip(graph, expectedGraph) {
-            assertEqual(pair, expectedPair, file: file, line: line)
+            assertMatch(pair, expectedPair, file: file, line: line)
         }
     }
     
-    func assertEqual<T>(_ records: [T], _ expectedRecords: [T], file: StaticString = #file, line: UInt = #line) where T: MutablePersistable {
-        XCTAssertEqual(records.count, expectedRecords.count, file: file, line: line)
-        for (record, expectedRecords) in zip(records, expectedRecords) {
-            assertEqual(record, expectedRecords, file: file, line: line)
-        }
-    }
-    
-    func assertEqual<T>(_ record: T?, _ expectedRecord: T?, file: StaticString = #file, line: UInt = #line) where T: MutablePersistable {
-        assertEqual(record.map { PersistenceContainer($0) }, expectedRecord.map { PersistenceContainer($0) }, file: file, line: line)
-    }
-    
-    func assertEqual(_ container: PersistenceContainer?, _ expectedContainer: PersistenceContainer?, file: StaticString = #file, line: UInt = #line) {
-        switch (container, expectedContainer) {
-        case (let container?, let expectedContainer?):
-            XCTAssertEqual(container.columns, expectedContainer.columns, file: file, line: line)
-            XCTAssertEqual(container.values.map { $0?.databaseValue ?? .null } , expectedContainer.values.map { $0?.databaseValue ?? .null }, file: file, line: line)
-        case (nil, nil):
-            break
-        default:
-            XCTFail("not equal", file: file, line: line)
+    func assertMatch<T>(_ records: [T], _ expectedRows: [Row], file: StaticString = #file, line: UInt = #line) where T: MutablePersistable {
+        XCTAssertEqual(records.count, expectedRows.count, file: file, line: line)
+        for (record, expectedRow) in zip(records, expectedRows) {
+            assertMatch(record, expectedRow, file: file, line: line)
         }
     }
 }

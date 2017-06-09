@@ -117,14 +117,26 @@ class GRDBTestCase: XCTestCase {
         XCTAssertTrue(sqlQueries.contains(sql), "Did not execute \(sql)")
     }
     
-    func assert(_ record: MutablePersistable, isEncodedIn row: Row) {
+    // TODO: rename assertMatch
+    func assert(_ record: MutablePersistable, isEncodedIn row: Row, file: StaticString = #file, line: UInt = #line) {
         let recordContent = AnySequence({ PersistenceContainer(record).makeIterator() })
         for (column, value) in recordContent {
             if let dbValue: DatabaseValue = row.value(named: column) {
-                XCTAssertEqual(dbValue, value?.databaseValue ?? .null)
+                XCTAssertEqual(dbValue, value?.databaseValue ?? .null, file: file, line: line)
             } else {
-                XCTFail("Missing column \(column) in fetched row")
+                XCTFail("Missing column \(column) in fetched row", file: file, line: line)
             }
+        }
+    }
+    
+    func assertMatch<T>(_ record: T?, _ expectedRow: Row?, file: StaticString = #file, line: UInt = #line) where T: MutablePersistable {
+        switch (record, expectedRow) {
+        case (let record?, let row?):
+            assert(record, isEncodedIn: row, file: file, line: line)
+        case (nil, nil):
+            break
+        default:
+            XCTFail("no match", file: file, line: line)
         }
     }
     
