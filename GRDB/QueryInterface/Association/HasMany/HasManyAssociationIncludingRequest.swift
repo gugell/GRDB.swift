@@ -88,9 +88,9 @@ extension HasManyAssociation.IncludingRequest {
 }
 
 extension HasManyAssociation.IncludingRequest where Left: RowConvertible, Right: RowConvertible {
-    public func fetchAll(_ db: Database) throws -> [(Left, [Right])] {
+    public func fetchAll(_ db: Database) throws -> [(left: Left, right: [Right])] {
         let mapping = try association.mapping(db)
-        var result: [(Left, [Right])] = []
+        var result: [(left: Left, right: [Right])] = []
         var leftKeys: [RowValue] = []
         var resultIndexes : [RowValue: Int] = [:]
         
@@ -110,7 +110,7 @@ extension HasManyAssociation.IncludingRequest where Left: RowConvertible, Right:
                 let key = RowValue(foreignKeyIndexes.map { row.value(atIndex: $0) })
                 leftKeys.append(key)
                 resultIndexes[key] = recordIndex
-                result.append((left, []))
+                result.append((left: left, right: []))
             }
         }
         
@@ -144,8 +144,8 @@ extension HasManyAssociation.IncludingRequest where Left: RowConvertible, Right:
             while let row = try cursor.next() {
                 let right = Right(row: row)
                 let foreignKey = RowValue(foreignKeyIndexes.map { row.value(atIndex: $0) })
-                let index = resultIndexes[foreignKey]!
-                result[index].1.append(right)
+                let index = resultIndexes[foreignKey]! // index has been recorded during leftRequest iteration
+                result[index].right.append(right)
             }
         }
         

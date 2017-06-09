@@ -21,7 +21,7 @@ extension JoinedPair where Left: RowConvertible, Right: RowConvertible, Join == 
     
     // MARK: Fetching From SelectStatement
     
-    static func fetchCursor(_ statement: SelectStatement, arguments: StatementArguments? = nil, adapter: RowAdapter? = nil) throws -> DatabaseCursor<(Left, Right)> {
+    static func fetchCursor(_ statement: SelectStatement, arguments: StatementArguments? = nil, adapter: RowAdapter? = nil) throws -> DatabaseCursor<(left: Left, right: Right)> {
         // Reuse a single mutable row for performance.
         let row = try Row(statement: statement).adapted(with: adapter, layout: statement)
         return statement.cursor(arguments: arguments, next: {
@@ -35,11 +35,11 @@ extension JoinedPair where Left: RowConvertible, Right: RowConvertible, Join == 
         })
     }
     
-    static func fetchAll(_ statement: SelectStatement, arguments: StatementArguments? = nil, adapter: RowAdapter? = nil) throws -> [(Left, Right)] {
+    static func fetchAll(_ statement: SelectStatement, arguments: StatementArguments? = nil, adapter: RowAdapter? = nil) throws -> [(left: Left, right: Right)] {
         return try Array(fetchCursor(statement, arguments: arguments, adapter: adapter))
     }
     
-    static func fetchOne(_ statement: SelectStatement, arguments: StatementArguments? = nil, adapter: RowAdapter? = nil) throws -> (Left, Right)? {
+    static func fetchOne(_ statement: SelectStatement, arguments: StatementArguments? = nil, adapter: RowAdapter? = nil) throws -> (left: Left, right: Right)? {
         return try fetchCursor(statement, arguments: arguments, adapter: adapter).next()
     }
 }
@@ -48,17 +48,17 @@ extension JoinedPair where Left: RowConvertible, Right: RowConvertible, Join == 
     
     // MARK: Fetching From Request
     
-    static func fetchCursor(_ db: Database, _ request: Request) throws -> DatabaseCursor<(Left, Right)> {
+    static func fetchCursor(_ db: Database, _ request: Request) throws -> DatabaseCursor<(left: Left, right: Right)> {
         let (statement, adapter) = try request.prepare(db)
         return try fetchCursor(statement, adapter: adapter)
     }
     
-    static func fetchAll(_ db: Database, _ request: Request) throws -> [(Left, Right)] {
+    static func fetchAll(_ db: Database, _ request: Request) throws -> [(left: Left, right: Right)] {
         let (statement, adapter) = try request.prepare(db)
         return try fetchAll(statement, adapter: adapter)
     }
     
-    static func fetchOne(_ db: Database, _ request: Request) throws -> (Left, Right)? {
+    static func fetchOne(_ db: Database, _ request: Request) throws -> (left: Left, right: Right)? {
         let (statement, adapter) = try request.prepare(db)
         return try fetchOne(statement, adapter: adapter)
     }
@@ -71,7 +71,7 @@ extension JoinedPair where Left: RowConvertible, Right: RowConvertible, Join == 
     
     // MARK: Fetching From SelectStatement
     
-    static func fetchCursor(_ statement: SelectStatement, arguments: StatementArguments? = nil, adapter: RowAdapter? = nil) throws -> DatabaseCursor<(Left, Right?)> {
+    static func fetchCursor(_ statement: SelectStatement, arguments: StatementArguments? = nil, adapter: RowAdapter? = nil) throws -> DatabaseCursor<(left: Left, right: Right?)> {
         // Reuse a single mutable row for performance.
         let row = try Row(statement: statement).adapted(with: adapter, layout: statement)
         return statement.cursor(arguments: arguments, next: {
@@ -85,11 +85,11 @@ extension JoinedPair where Left: RowConvertible, Right: RowConvertible, Join == 
         })
     }
     
-    static func fetchAll(_ statement: SelectStatement, arguments: StatementArguments? = nil, adapter: RowAdapter? = nil) throws -> [(Left, Right?)] {
+    static func fetchAll(_ statement: SelectStatement, arguments: StatementArguments? = nil, adapter: RowAdapter? = nil) throws -> [(left: Left, right: Right?)] {
         return try Array(fetchCursor(statement, arguments: arguments, adapter: adapter))
     }
     
-    static func fetchOne(_ statement: SelectStatement, arguments: StatementArguments? = nil, adapter: RowAdapter? = nil) throws -> (Left, Right?)? {
+    static func fetchOne(_ statement: SelectStatement, arguments: StatementArguments? = nil, adapter: RowAdapter? = nil) throws -> (left: Left, right: Right?)? {
         return try fetchCursor(statement, arguments: arguments, adapter: adapter).next()
     }
 }
@@ -98,17 +98,17 @@ extension JoinedPair where Left: RowConvertible, Right: RowConvertible, Join == 
     
     // MARK: Fetching From Request
     
-    static func fetchCursor(_ db: Database, _ request: Request) throws -> DatabaseCursor<(Left, Right?)> {
+    static func fetchCursor(_ db: Database, _ request: Request) throws -> DatabaseCursor<(left: Left, right: Right?)> {
         let (statement, adapter) = try request.prepare(db)
         return try fetchCursor(statement, adapter: adapter)
     }
     
-    static func fetchAll(_ db: Database, _ request: Request) throws -> [(Left, Right?)] {
+    static func fetchAll(_ db: Database, _ request: Request) throws -> [(left: Left, right: Right?)] {
         let (statement, adapter) = try request.prepare(db)
         return try fetchAll(statement, adapter: adapter)
     }
     
-    static func fetchOne(_ db: Database, _ request: Request) throws -> (Left, Right?)? {
+    static func fetchOne(_ db: Database, _ request: Request) throws -> (left: Left, right: Right?)? {
         let (statement, adapter) = try request.prepare(db)
         return try fetchOne(statement, adapter: adapter)
     }

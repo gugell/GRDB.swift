@@ -103,15 +103,15 @@ extension HasOneAssociation.LeftJoinedRequest : TypedRequest {
 
 // TODO: write this as an extension of TypedRequest when Swift makes it possible.
 extension HasOneAssociation.LeftJoinedRequest where Left: RowConvertible, Right: RowConvertible {
-    public func fetchCursor(_ db: Database) throws -> DatabaseCursor<(Left, Right?)> {
+    public func fetchCursor(_ db: Database) throws -> DatabaseCursor<(left: Left, right: Right?)> {
         return try JoinedPair<Left, Right, LeftJoinKind>.fetchCursor(db, self)
     }
     
-    public func fetchAll(_ db: Database) throws -> [(Left, Right?)] {
+    public func fetchAll(_ db: Database) throws -> [(left: Left, right: Right?)] {
         return try JoinedPair<Left, Right, LeftJoinKind>.fetchAll(db, self)
     }
     
-    public func fetchOne(_ db: Database) throws -> (Left, Right?)? {
+    public func fetchOne(_ db: Database) throws -> (left: Left, right: Right?)? {
         return try JoinedPair<Left, Right, LeftJoinKind>.fetchOne(db, self)
     }
 }

@@ -103,15 +103,15 @@ extension BelongsToAssociation.JoinedRequest : TypedRequest {
 
 // TODO: write this as an extension of TypedRequest when Swift makes it possible.
 extension BelongsToAssociation.JoinedRequest where Left: RowConvertible, Right: RowConvertible {
-    public func fetchCursor(_ db: Database) throws -> DatabaseCursor<(Left, Right)> {
+    public func fetchCursor(_ db: Database) throws -> DatabaseCursor<(left: Left, right: Right)> {
         return try JoinedPair<Left, Right, InnerJoinKind>.fetchCursor(db, self)
     }
     
-    public func fetchAll(_ db: Database) throws -> [(Left, Right)] {
+    public func fetchAll(_ db: Database) throws -> [(left: Left, right: Right)] {
         return try JoinedPair<Left, Right, InnerJoinKind>.fetchAll(db, self)
     }
     
-    public func fetchOne(_ db: Database) throws -> (Left, Right)? {
+    public func fetchOne(_ db: Database) throws -> (left: Left, right: Right)? {
         return try JoinedPair<Left, Right, InnerJoinKind>.fetchOne(db, self)
     }
 }
