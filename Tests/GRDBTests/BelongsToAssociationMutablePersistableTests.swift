@@ -12,7 +12,7 @@ private typealias Book = AssociationFixture.Book
 
 class BelongsToAssociationMutablePersistableTests: GRDBTestCase {
     
-    func testOwning() throws {
+    func testRequest() throws {
         let dbQueue = try makeDatabaseQueue()
         try AssociationFixture().migrator.migrate(dbQueue)
         
@@ -20,14 +20,16 @@ class BelongsToAssociationMutablePersistableTests: GRDBTestCase {
             
             do {
                 let book = try Book.fetchOne(db, key: 1)!
-                let author = try Book.author.owning(book).fetchOne(db)
+                let request = book.makeRequest(Book.author)
+                let author = try request.fetchOne(db)
                 XCTAssertEqual(lastSQLQuery, "SELECT * FROM \"authors\" WHERE (\"id\" = 2)")
                 assertMatch(author, ["id": 2, "name": "J. M. Coetzee", "birthYear": 1940])
             }
             
             do {
                 let book = try Book.fetchOne(db, key: 9)!
-                let author = try Book.author.owning(book).fetchOne(db)
+                let request = book.makeRequest(Book.author)
+                let author = try request.fetchOne(db)
                 XCTAssertEqual(lastSQLQuery, "SELECT * FROM \"authors\" WHERE (\"id\" IS NULL)")
                 XCTAssertNil(author)
             }

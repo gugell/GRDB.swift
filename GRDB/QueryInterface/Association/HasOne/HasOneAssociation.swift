@@ -85,28 +85,8 @@ extension HasOneAssociation {
     }
 }
 
-extension TableMapping {
-    public static func hasOne<Right>(_ right: Right.Type) -> HasOneAssociation<Self, Right> where Right: TableMapping {
-        let columnMappingRequest = ColumnMappingRequest(
-            originTable: Right.databaseTableName,
-            destinationTable: databaseTableName)
-        return HasOneAssociation(columnMappingRequest: columnMappingRequest, rightRequest: Right.all())
-    }
-    
-    public static func hasOne<Right>(_ right: Right.Type, from column: String) -> HasOneAssociation<Self, Right> where Right: TableMapping {
-        let columnMappingRequest = ColumnMappingRequest(
-            originTable: Right.databaseTableName,
-            destinationTable: databaseTableName,
-            originColumns: [column])
-        return HasOneAssociation(columnMappingRequest: columnMappingRequest, rightRequest: Right.all())
-    }
-    
-    // TODO: multiple right columns
-    // TODO: fully qualified foreign key (left + right columns)
-}
-
 extension HasOneAssociation where Left: MutablePersistable {
-    public func belonging(to record: Left) -> QueryInterfaceRequest<Right> {
+    func makeRequest(from record: Left) -> QueryInterfaceRequest<Right> {
         return rightRequest.filter { db in
             let mapping = try self.mapping(db)
             let container = PersistenceContainer(record)

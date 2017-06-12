@@ -15,7 +15,7 @@ class HasManyAssociationMutablePersistableTests: GRDBTestCase {
     // TODO: tests for left implicit row id, and compound keys
     // TODO: test fetchOne, fetchCursor
     
-    func testBelongingTo() throws {
+    func testRequest() throws {
         let dbQueue = try makeDatabaseQueue()
         try AssociationFixture().migrator.migrate(dbQueue)
         
@@ -23,7 +23,7 @@ class HasManyAssociationMutablePersistableTests: GRDBTestCase {
 
             do {
                 let author = try Author.fetchOne(db, key: 2)!
-                let request = Author.books.belonging(to: author)
+                let request = author.makeRequest(Author.books)
                 let books = try request.fetchAll(db)
                 XCTAssertEqual(lastSQLQuery, "SELECT * FROM \"books\" WHERE (\"authorId\" = 2)")
                 assertMatch(books, [
@@ -34,7 +34,7 @@ class HasManyAssociationMutablePersistableTests: GRDBTestCase {
             
             do {
                 let author = try Author.fetchOne(db, key: 4)!
-                let request = Author.books.belonging(to: author)
+                let request = author.makeRequest(Author.books)
                 let books = try request.fetchAll(db)
                 XCTAssertEqual(lastSQLQuery, "SELECT * FROM \"books\" WHERE (\"authorId\" = 4)")
                 assertMatch(books, [
@@ -48,7 +48,7 @@ class HasManyAssociationMutablePersistableTests: GRDBTestCase {
             
             do {
                 let author = try Author.fetchOne(db, key: 1)!
-                let request = Author.books.belonging(to: author)
+                let request = author.makeRequest(Author.books)
                 let books = try request.fetchAll(db)
                 XCTAssertEqual(lastSQLQuery, "SELECT * FROM \"books\" WHERE (\"authorId\" = 1)")
                 XCTAssertTrue(books.isEmpty)
@@ -56,7 +56,7 @@ class HasManyAssociationMutablePersistableTests: GRDBTestCase {
             
             do {
                 let author = try Author.fetchOne(db, key: 4)!
-                let request = Author.books.belonging(to: author).filter(Column("year") < 2000)
+                let request = author.makeRequest(Author.books).filter(Column("year") < 2000)
                 let books = try request.fetchAll(db)
                 XCTAssertEqual(lastSQLQuery, "SELECT * FROM \"books\" WHERE ((\"authorId\" = 4) AND (\"year\" < 2000))")
                 assertMatch(books, [
@@ -68,7 +68,7 @@ class HasManyAssociationMutablePersistableTests: GRDBTestCase {
             
             do {
                 let author = try Author.fetchOne(db, key: 4)!
-                let request = Author.books.belonging(to: author).order(Column("title").desc)
+                let request = author.makeRequest(Author.books).order(Column("title").desc)
                 let books = try request.fetchAll(db)
                 XCTAssertEqual(lastSQLQuery, "SELECT * FROM \"books\" WHERE (\"authorId\" = 4) ORDER BY \"title\" DESC")
                 assertMatch(books, [

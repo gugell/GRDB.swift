@@ -85,28 +85,8 @@ extension BelongsToAssociation {
     }
 }
 
-extension TableMapping {
-    public static func belongsTo<Right>(_ right: Right.Type) -> BelongsToAssociation<Self, Right> where Right: TableMapping {
-        let columnMappingRequest = ColumnMappingRequest(
-            originTable: databaseTableName,
-            destinationTable: Right.databaseTableName)
-        return BelongsToAssociation(columnMappingRequest: columnMappingRequest, rightRequest: Right.all())
-    }
-    
-    public static func belongsTo<Right>(_ right: Right.Type, from column: String) -> BelongsToAssociation<Self, Right> where Right: TableMapping {
-        let columnMappingRequest = ColumnMappingRequest(
-            originTable: databaseTableName,
-            destinationTable: Right.databaseTableName,
-            originColumns: [column])
-        return BelongsToAssociation(columnMappingRequest: columnMappingRequest, rightRequest: Right.all())
-    }
-    
-    // TODO: multiple right columns in columnMappingRequest
-    // TODO: fully qualified foreign key (left + right columns) in columnMappingRequest
-}
-
 extension BelongsToAssociation where Left: MutablePersistable {
-    public func owning(_ record: Left) -> QueryInterfaceRequest<Right> {
+    func makeRequest(from record: Left) -> QueryInterfaceRequest<Right> {
         return rightRequest.filter { db in
             let mapping = try self.mapping(db)
             let container = PersistenceContainer(record)
