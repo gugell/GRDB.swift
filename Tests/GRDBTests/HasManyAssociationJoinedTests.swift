@@ -15,6 +15,7 @@ class HasManyAssociationJoinedTests: GRDBTestCase {
     // TODO: tests for left implicit row id, and compound keys
     // TODO: test fetchOne, fetchCursor
     // TODO: test sql snippets with table aliases
+    // TODO: test left and right derivations at the same time
     
     func testSimplestRequest() throws {
         let dbQueue = try makeDatabaseQueue()
