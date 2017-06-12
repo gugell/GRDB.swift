@@ -37,15 +37,18 @@ struct AssociationFixture {
         static let databaseTableName = "authors"
         let id: Int64?
         let name: String
+        let birthYear: Int
         
         init(row: Row) {
             id = row.value(named: "id")
             name = row.value(named: "name")
+            birthYear = row.value(named: "birthYear")
         }
         
         func encode(to container: inout PersistenceContainer) {
             container["id"] = id
             container["name"] = name
+            container["birthYear"] = birthYear
         }
         
         static let books = hasMany(Book.self)
@@ -58,13 +61,14 @@ struct AssociationFixture {
             try db.create(table: "authors") { t in
                 t.column("id", .integer).primaryKey()
                 t.column("name", .text).notNull()
+                t.column("birthYear", .integer).notNull()
             }
-            try db.execute("INSERT INTO authors (name) VALUES (?)", arguments: ["Gwendal Roué"])
-            try db.execute("INSERT INTO authors (name) VALUES (?)", arguments: ["J. M. Coetzee"])
+            try db.execute("INSERT INTO authors (name, birthYear) VALUES (?, ?)", arguments: ["Gwendal Roué", 1973])
+            try db.execute("INSERT INTO authors (name, birthYear) VALUES (?, ?)", arguments: ["J. M. Coetzee", 1940])
             let coetzeeId = db.lastInsertedRowID
-            try db.execute("INSERT INTO authors (name) VALUES (?)", arguments: ["Herman Melville"])
+            try db.execute("INSERT INTO authors (name, birthYear) VALUES (?, ?)", arguments: ["Herman Melville", 1819])
             let melvilleId = db.lastInsertedRowID
-            try db.execute("INSERT INTO authors (name) VALUES (?)", arguments: ["Kim Stanley Robinson"])
+            try db.execute("INSERT INTO authors (name, birthYear) VALUES (?, ?)", arguments: ["Kim Stanley Robinson", 1952])
             let robinsonId = db.lastInsertedRowID
             
             try db.create(table: "books") { t in
@@ -96,7 +100,7 @@ extension GRDBTestCase {
     }
     
     func assertMatch<Left, Right>(_ graph: [(Left, Right)], _ expectedGraph: [(Row, Row)], file: StaticString = #file, line: UInt = #line) where Left: MutablePersistable, Right: MutablePersistable {
-        XCTAssertEqual(graph.count, expectedGraph.count, file: file, line: line)
+        XCTAssertEqual(graph.count, expectedGraph.count, "count mismatch for \(expectedGraph)", file: file, line: line)
         for (pair, expectedPair) in zip(graph, expectedGraph) {
             assertMatch(pair, expectedPair, file: file, line: line)
         }
@@ -108,7 +112,7 @@ extension GRDBTestCase {
     }
     
     func assertMatch<Left, Right>(_ graph: [(Left, Right?)], _ expectedGraph: [(Row, Row?)], file: StaticString = #file, line: UInt = #line) where Left: MutablePersistable, Right: MutablePersistable {
-        XCTAssertEqual(graph.count, expectedGraph.count, file: file, line: line)
+        XCTAssertEqual(graph.count, expectedGraph.count, "count mismatch for \(expectedGraph)", file: file, line: line)
         for (pair, expectedPair) in zip(graph, expectedGraph) {
             assertMatch(pair, expectedPair, file: file, line: line)
         }
@@ -120,14 +124,14 @@ extension GRDBTestCase {
     }
     
     func assertMatch<Left, Right>(_ graph: [(Left, [Right])], _ expectedGraph: [(Row, [Row])], file: StaticString = #file, line: UInt = #line) where Left: MutablePersistable, Right: MutablePersistable {
-        XCTAssertEqual(graph.count, expectedGraph.count, file: file, line: line)
+        XCTAssertEqual(graph.count, expectedGraph.count, "count mismatch for \(expectedGraph)", file: file, line: line)
         for (pair, expectedPair) in zip(graph, expectedGraph) {
             assertMatch(pair, expectedPair, file: file, line: line)
         }
     }
     
     func assertMatch<T>(_ records: [T], _ expectedRows: [Row], file: StaticString = #file, line: UInt = #line) where T: MutablePersistable {
-        XCTAssertEqual(records.count, expectedRows.count, file: file, line: line)
+        XCTAssertEqual(records.count, expectedRows.count, "count mismatch for \(expectedRows)", file: file, line: line)
         for (record, expectedRow) in zip(records, expectedRows) {
             assertMatch(record, expectedRow, file: file, line: line)
         }
