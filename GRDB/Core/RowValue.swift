@@ -13,6 +13,10 @@ struct RowValue {
         return dbValues.count
     }
     
+    var containsNonNullValues: Bool {
+        return dbValues.contains { !$0.isNull }
+    }
+    
     init(_ dbValues : [DatabaseValue]) {
         self.dbValues = dbValues
     }

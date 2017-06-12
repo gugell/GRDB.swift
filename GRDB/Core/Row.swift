@@ -884,7 +884,7 @@ private struct ArrayRowImpl : RowImpl {
     }
     
     func containsNonNullValues(at indexes: IndexSet) -> Bool {
-        return !indexes.contains { columns[$0].1.isNull }
+        return indexes.contains { !columns[$0].1.isNull }
     }
     
     func dataNoCopy(atUncheckedIndex index:Int) -> Data? {
@@ -940,7 +940,7 @@ private struct StatementCopyRowImpl : RowImpl {
     }
     
     func containsNonNullValues(at indexes: IndexSet) -> Bool {
-        return !indexes.contains { dbValues[$0].isNull }
+        return indexes.contains { !dbValues[$0].isNull }
     }
     
     func dataNoCopy(atUncheckedIndex index:Int) -> Data? {
