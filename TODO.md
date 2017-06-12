@@ -12,6 +12,7 @@
     - [ ] REGEXP https://www.sqlite.org/lang_expr.html
     - [ ] CASE x WHEN w1 THEN r1 WHEN w2 THEN r2 ELSE r3 END https://www.sqlite.org/lang_expr.html
 - [ ] See how we can use [sqlite3_get_autocommit](https://www.sqlite.org/capi3ref.html#sqlite3_get_autocommit)
+- [ ] Index a column right at its creation: `create(table: "...") { t in t.column("name", .text).indexed() }`
 
 v1.0 checklit
 
