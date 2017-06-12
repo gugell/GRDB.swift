@@ -12,7 +12,7 @@ struct AssociationFixture {
     struct Book : TableMapping, RowConvertible, MutablePersistable {
         static let databaseTableName = "books"
         let id: Int64?
-        let authorId: Int64
+        let authorId: Int64?
         let title: String
         let year: Int
         
@@ -73,7 +73,7 @@ struct AssociationFixture {
             
             try db.create(table: "books") { t in
                 t.column("id", .integer).primaryKey()
-                t.column("authorId", .integer).notNull().references("authors")
+                t.column("authorId", .integer).references("authors")
                 t.column("title", .text).notNull()
                 t.column("year", .integer).notNull()
             }
@@ -86,6 +86,7 @@ struct AssociationFixture {
             try db.execute("INSERT INTO books (authorId, title, year) VALUES (?, ?, ?)", arguments: [robinsonId, "Blue Mars", 1996])
             try db.execute("INSERT INTO books (authorId, title, year) VALUES (?, ?, ?)", arguments: [robinsonId, "Green Mars", 1994])
             try db.execute("INSERT INTO books (authorId, title, year) VALUES (?, ?, ?)", arguments: [robinsonId, "Red Mars", 1993])
+            try db.execute("INSERT INTO books (authorId, title, year) VALUES (?, ?, ?)", arguments: [nil, "Unattributed", 2017])
         }
         
         return migrator
