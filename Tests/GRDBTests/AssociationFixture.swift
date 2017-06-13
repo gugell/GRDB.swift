@@ -74,18 +74,18 @@ struct AssociationFixture {
     
     struct CountryProfile : TableMapping, RowConvertible, MutablePersistable {
         static let databaseTableName = "countryProfiles"
-        let code: String
+        let countryCode: String
         let area: Double
         let currency: String
         
         init(row: Row) {
-            code = row.value(named: "code")
+            countryCode = row.value(named: "countryCode")
             area = row.value(named: "area")
             currency = row.value(named: "currency")
         }
         
         func encode(to container: inout PersistenceContainer) {
-            container["code"] = code
+            container["countryCode"] = countryCode
             container["area"] = area
             container["currency"] = currency
         }
@@ -135,13 +135,13 @@ struct AssociationFixture {
             try db.execute("INSERT INTO countries (code, name) VALUES (?, ?)", arguments: ["AA", "Atlantis"])
             
             try db.create(table: "countryProfiles") { t in
-                t.column("code", .text).primaryKey().references("countries")
+                t.column("countryCode", .text).primaryKey().references("countries")
                 t.column("area", .double)
                 t.column("currency", .text)
             }
-            try db.execute("INSERT INTO countryProfiles (code, area, currency) VALUES (?, ?, ?)", arguments: ["FR", 643801, "EUR"])
-            try db.execute("INSERT INTO countryProfiles (code, area, currency) VALUES (?, ?, ?)", arguments: ["US", 9833520, "USD"])
-            try db.execute("INSERT INTO countryProfiles (code, area, currency) VALUES (?, ?, ?)", arguments: ["DE", 357168, "EUR"])
+            try db.execute("INSERT INTO countryProfiles (countryCode, area, currency) VALUES (?, ?, ?)", arguments: ["FR", 643801, "EUR"])
+            try db.execute("INSERT INTO countryProfiles (countryCode, area, currency) VALUES (?, ?, ?)", arguments: ["US", 9833520, "USD"])
+            try db.execute("INSERT INTO countryProfiles (countryCode, area, currency) VALUES (?, ?, ?)", arguments: ["DE", 357168, "EUR"])
         }
         
         return migrator
