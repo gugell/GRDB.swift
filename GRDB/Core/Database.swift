@@ -1331,20 +1331,23 @@ extension Database {
     public func foreignKeys(_ tableName: String) throws -> [ForeignKeyInfo] {
         // TODO: cache
         
-        // [destinationTable: [(origin: originColumn, destination: destinationColumn, seq: order in the foreign key)]]
-        var foreignKeys: [String: [(origin: String, destination: String, seq: Int)]] = [:]
+        var foreignKeys: [(destinationTable: String, mapping: [(origin: String, destination: String, seq: Int)])] = []
         
+        var previousId: Int? = nil
+        var previousSeq: Int? = nil
         for row in try Row.fetchAll(self, "PRAGMA foreign_key_list(\(tableName.quotedDatabaseIdentifier))") {
             // row = <Row id:0 seq:0 table:"parents" from:"parentId" to:"id" on_update:"..." on_delete:"..." match:"...">
+            let id: Int = row.value(atIndex: 0)
             let seq: Int = row.value(atIndex: 1)
             let table: String = row.value(atIndex: 2)
             let origin: String = row.value(atIndex: 3)
             let destination: String = row.value(atIndex: 4)
             
-            if let columnMapping = foreignKeys[table] {
-                foreignKeys[table] = columnMapping + [(origin: origin, destination: destination, seq: seq)]
+            if previousId == id {
+                foreignKeys[foreignKeys.count - 1].mapping.append((origin: origin, destination: destination, seq: seq))
             } else {
-                foreignKeys[table] = [(origin: origin, destination: destination, seq: seq)]
+                foreignKeys.append((destinationTable: table, mapping: [(origin: origin, destination: destination, seq: seq)]))
+                previousId = id
             }
         }
         return foreignKeys.map { (destinationTable, columnMapping) -> ForeignKeyInfo in

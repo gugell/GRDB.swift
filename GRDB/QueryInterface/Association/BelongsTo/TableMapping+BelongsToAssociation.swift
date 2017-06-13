@@ -6,14 +6,20 @@ extension TableMapping {
         return BelongsToAssociation(columnMappingRequest: columnMappingRequest, rightRequest: Right.all())
     }
     
-    public static func belongsTo<Right>(_ right: Right.Type, from column: String) -> BelongsToAssociation<Self, Right> where Right: TableMapping {
+    public static func belongsTo<Right>(_ right: Right.Type, from originColumns: String...) -> BelongsToAssociation<Self, Right> where Right: TableMapping {
         let columnMappingRequest = ColumnMappingRequest(
             originTable: databaseTableName,
             destinationTable: Right.databaseTableName,
-            originColumns: [column])
+            originColumns: originColumns)
         return BelongsToAssociation(columnMappingRequest: columnMappingRequest, rightRequest: Right.all())
     }
     
-    // TODO: multiple right columns in columnMappingRequest
-    // TODO: fully qualified foreign key (left + right columns) in columnMappingRequest
+    public static func belongsTo<Right>(_ right: Right.Type, from originColumns: [String], to destinationColumns: [String]) -> BelongsToAssociation<Self, Right> where Right: TableMapping {
+        let columnMappingRequest = ColumnMappingRequest(
+            originTable: databaseTableName,
+            destinationTable: Right.databaseTableName,
+            originColumns: originColumns,
+            destinationColumns: destinationColumns)
+        return BelongsToAssociation(columnMappingRequest: columnMappingRequest, rightRequest: Right.all())
+    }
 }

@@ -19,97 +19,174 @@ class BelongsToAssociationTests: GRDBTestCase {
     
     // TODO: tests for left implicit row id, compound keys, and missing foreign key
     
-    func testInferredForeignKey() throws {
-        struct Child : TableMapping, RowConvertible {
+    func testSingleColumnNoForeignKey() throws {
+        struct Child : TableMapping {
             static let databaseTableName = "children"
-            let id: Int64
-            let parentId: Int64
-            let name: String
-            
-            init(row: Row) {
-                id = row.value(named: "id")
-                parentId = row.value(named: "parentId")
-                name = row.value(named: "name")
-            }
-            
-            // The tested association
-            static let parent = belongsTo(Parent.self)
         }
         
-        struct Parent : TableMapping, RowConvertible {
+        struct Parent : TableMapping {
             static let databaseTableName = "parents"
-            let id: Int64
-            let name: String
-            
-            init(row: Row) {
-                id = row.value(named: "id")
-                name = row.value(named: "name")
-            }
         }
         
         let dbQueue = try makeDatabaseQueue()
         try dbQueue.inDatabase { db in
             try db.create(table: "parents") { t in
                 t.column("id", .integer).primaryKey()
-                t.column("name", .text)
             }
             try db.create(table: "children") { t in
-                t.column("id", .integer).primaryKey()
-                t.column("parentId", .integer).references("parents")
-                t.column("name", .text)
+                t.column("parentId", .integer)
             }
         }
         
         try dbQueue.inDatabase { db in
-            let mapping = try Child.parent.mapping(db)
-            assertEqual(mapping, [(left: "parentId", right: "id")])
+            try assertEqual(Child.belongsTo(Parent.self, from: "parentId").mapping(db), [(left: "parentId", right: "id")])
+            try assertEqual(Child.belongsTo(Parent.self, from: ["parentId"], to: ["id"]).mapping(db), [(left: "parentId", right: "id")])
         }
     }
     
-    func testSingleRightColumn() throws {
-        struct Child : TableMapping, RowConvertible {
+    func testSingleColumnSingleForeignKey() throws {
+        struct Child : TableMapping {
             static let databaseTableName = "children"
-            let id: Int64
-            let parentId: Int64
-            let name: String
-            
-            init(row: Row) {
-                id = row.value(named: "id")
-                parentId = row.value(named: "parentId")
-                name = row.value(named: "name")
-            }
-            
-            // The tested association
-            static let parent = belongsTo(Parent.self, from: "parentId")
         }
         
-        struct Parent : TableMapping, RowConvertible {
+        struct Parent : TableMapping {
             static let databaseTableName = "parents"
-            let id: Int64
-            let name: String
-            
-            init(row: Row) {
-                id = row.value(named: "id")
-                name = row.value(named: "name")
-            }
         }
         
         let dbQueue = try makeDatabaseQueue()
         try dbQueue.inDatabase { db in
             try db.create(table: "parents") { t in
                 t.column("id", .integer).primaryKey()
-                t.column("name", .text)
             }
             try db.create(table: "children") { t in
-                t.column("id", .integer).primaryKey()
                 t.column("parentId", .integer).references("parents")
-                t.column("name", .text)
             }
         }
         
         try dbQueue.inDatabase { db in
-            let mapping = try Child.parent.mapping(db)
-            assertEqual(mapping, [(left: "parentId", right: "id")])
+            try assertEqual(Child.belongsTo(Parent.self).mapping(db), [(left: "parentId", right: "id")])
+            try assertEqual(Child.belongsTo(Parent.self, from: "parentId").mapping(db), [(left: "parentId", right: "id")])
+            try assertEqual(Child.belongsTo(Parent.self, from: ["parentId"], to: ["id"]).mapping(db), [(left: "parentId", right: "id")])
+        }
+    }
+    
+    func testSingleColumnSeveralForeignKeys() throws {
+        struct Child : TableMapping {
+            static let databaseTableName = "children"
+        }
+        
+        struct Parent : TableMapping {
+            static let databaseTableName = "parents"
+        }
+        
+        let dbQueue = try makeDatabaseQueue()
+        try dbQueue.inDatabase { db in
+            try db.create(table: "parents") { t in
+                t.column("id", .integer).primaryKey()
+            }
+            try db.create(table: "children") { t in
+                t.column("parent1Id", .integer).references("parents")
+                t.column("parent2Id", .integer).references("parents")
+            }
+        }
+        
+        try dbQueue.inDatabase { db in
+            try assertEqual(Child.belongsTo(Parent.self, from: "parent1Id").mapping(db), [(left: "parent1Id", right: "id")])
+            try assertEqual(Child.belongsTo(Parent.self, from: ["parent1Id"], to: ["id"]).mapping(db), [(left: "parent1Id", right: "id")])
+            try assertEqual(Child.belongsTo(Parent.self, from: "parent2Id").mapping(db), [(left: "parent2Id", right: "id")])
+            try assertEqual(Child.belongsTo(Parent.self, from: ["parent2Id"], to: ["id"]).mapping(db), [(left: "parent2Id", right: "id")])
+        }
+    }
+    
+    func testCompoundColumnNoForeignKey() throws {
+        struct Child : TableMapping {
+            static let databaseTableName = "children"
+        }
+        
+        struct Parent : TableMapping {
+            static let databaseTableName = "parents"
+        }
+        
+        let dbQueue = try makeDatabaseQueue()
+        try dbQueue.inDatabase { db in
+            try db.create(table: "parents") { t in
+                t.column("a", .integer)
+                t.column("b", .integer)
+                t.primaryKey(["a", "b"])
+            }
+            try db.create(table: "children") { t in
+                t.column("parentA", .integer)
+                t.column("parentB", .integer)
+            }
+        }
+        
+        try dbQueue.inDatabase { db in
+            try assertEqual(Child.belongsTo(Parent.self, from: "parentA", "parentB").mapping(db), [(left: "parentA", right: "a"), (left: "parentB", right: "b")])
+            try assertEqual(Child.belongsTo(Parent.self, from: ["parentA", "parentB"], to: ["a", "b"]).mapping(db), [(left: "parentA", right: "a"), (left: "parentB", right: "b")])
+        }
+    }
+    
+    func testCompoundColumnSingleForeignKey() throws {
+        struct Child : TableMapping {
+            static let databaseTableName = "children"
+        }
+        
+        struct Parent : TableMapping {
+            static let databaseTableName = "parents"
+        }
+        
+        let dbQueue = try makeDatabaseQueue()
+        try dbQueue.inDatabase { db in
+            try db.create(table: "parents") { t in
+                t.column("a", .integer)
+                t.column("b", .integer)
+                t.primaryKey(["a", "b"])
+            }
+            try db.create(table: "children") { t in
+                t.column("parentA", .integer)
+                t.column("parentB", .integer)
+                t.foreignKey(["parentA", "parentB"], references: "parents")
+            }
+        }
+        
+        try dbQueue.inDatabase { db in
+            try assertEqual(Child.belongsTo(Parent.self).mapping(db), [(left: "parentA", right: "a"), (left: "parentB", right: "b")])
+            try assertEqual(Child.belongsTo(Parent.self, from: "parentA", "parentB").mapping(db), [(left: "parentA", right: "a"), (left: "parentB", right: "b")])
+            try assertEqual(Child.belongsTo(Parent.self, from: ["parentA", "parentB"], to: ["a", "b"]).mapping(db), [(left: "parentA", right: "a"), (left: "parentB", right: "b")])
+        }
+    }
+    
+    func testCompoundColumnSeveralForeignKeys() throws {
+        struct Child : TableMapping {
+            static let databaseTableName = "children"
+        }
+        
+        struct Parent : TableMapping {
+            static let databaseTableName = "parents"
+        }
+        
+        let dbQueue = try makeDatabaseQueue()
+        try dbQueue.inDatabase { db in
+            try db.create(table: "parents") { t in
+                t.column("a", .integer)
+                t.column("b", .integer)
+                t.primaryKey(["a", "b"])
+            }
+            try db.create(table: "children") { t in
+                t.column("parent1A", .integer)
+                t.column("parent1B", .integer)
+                t.column("parent2A", .integer)
+                t.column("parent2B", .integer)
+                t.foreignKey(["parent1A", "parent1B"], references: "parents")
+                t.foreignKey(["parent2A", "parent2B"], references: "parents")
+            }
+        }
+        
+        try dbQueue.inDatabase { db in
+            try assertEqual(Child.belongsTo(Parent.self, from: "parent1A", "parent1B").mapping(db), [(left: "parent1A", right: "a"), (left: "parent1B", right: "b")])
+            try assertEqual(Child.belongsTo(Parent.self, from: ["parent1A", "parent1B"], to: ["a", "b"]).mapping(db), [(left: "parent1A", right: "a"), (left: "parent1B", right: "b")])
+            try assertEqual(Child.belongsTo(Parent.self, from: "parent2A", "parent2B").mapping(db), [(left: "parent2A", right: "a"), (left: "parent2B", right: "b")])
+            try assertEqual(Child.belongsTo(Parent.self, from: ["parent2A", "parent2B"], to: ["a", "b"]).mapping(db), [(left: "parent2A", right: "a"), (left: "parent2B", right: "b")])
         }
     }
 }
