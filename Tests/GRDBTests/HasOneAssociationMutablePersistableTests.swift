@@ -22,15 +22,15 @@ class HasOneAssociationMutablePersistableTests: GRDBTestCase {
                 let country = try Country.fetchOne(db, key: "FR")!
                 let request = country.makeRequest(Country.profile)
                 let profile = try request.fetchOne(db)
-                XCTAssertEqual(lastSQLQuery, "SELECT ...")
-                assertMatch(profile, [:])
+                XCTAssertEqual(lastSQLQuery, "SELECT * FROM \"countryProfiles\" WHERE (\"countryCode\" = 'FR')")
+                assertMatch(profile, ["countryCode": "FR", "area": 643801, "currency": "EUR"])
             }
             
             do {
                 let country = try Country.fetchOne(db, key: "AA")!
                 let request = country.makeRequest(Country.profile)
                 let profile = try request.fetchOne(db)
-                XCTAssertEqual(lastSQLQuery, "SELECT ...")
+                XCTAssertEqual(lastSQLQuery, "SELECT * FROM \"countryProfiles\" WHERE (\"countryCode\" = 'AA')")
                 XCTAssertNil(profile)
             }
         }
@@ -46,14 +46,14 @@ class HasOneAssociationMutablePersistableTests: GRDBTestCase {
                 // TODO: way to make the author non-optional?
                 let country = try Country.fetchOne(db, key: "FR")!
                 let profile = try country.fetchOne(db, Country.profile)
-                XCTAssertEqual(lastSQLQuery, "SELECT ...")
-                assertMatch(profile, [:])
+                XCTAssertEqual(lastSQLQuery, "SELECT * FROM \"countryProfiles\" WHERE (\"countryCode\" = 'FR')")
+                assertMatch(profile, ["countryCode": "FR", "area": 643801, "currency": "EUR"])
             }
             
             do {
                 let country = try Country.fetchOne(db, key: "AA")!
                 let profile = try country.fetchOne(db, Country.profile)
-                XCTAssertEqual(lastSQLQuery, "SELECT ...")
+                XCTAssertEqual(lastSQLQuery, "SELECT * FROM \"countryProfiles\" WHERE (\"countryCode\" = 'AA')")
                 XCTAssertNil(profile)
             }
         }
