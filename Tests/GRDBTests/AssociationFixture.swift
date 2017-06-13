@@ -54,6 +54,43 @@ struct AssociationFixture {
         static let books = hasMany(Book.self)
     }
     
+    struct Country : TableMapping, RowConvertible, MutablePersistable {
+        static let databaseTableName = "countries"
+        let code: String
+        let name: String
+        
+        init(row: Row) {
+            code = row.value(named: "code")
+            name = row.value(named: "name")
+        }
+        
+        func encode(to container: inout PersistenceContainer) {
+            container["code"] = code
+            container["name"] = name
+        }
+        
+        static let profile = hasOne(CountryProfile.self)
+    }
+    
+    struct CountryProfile : TableMapping, RowConvertible, MutablePersistable {
+        static let databaseTableName = "countryProfiles"
+        let code: String
+        let area: Double
+        let currency: String
+        
+        init(row: Row) {
+            code = row.value(named: "code")
+            area = row.value(named: "area")
+            currency = row.value(named: "currency")
+        }
+        
+        func encode(to container: inout PersistenceContainer) {
+            container["code"] = code
+            container["area"] = area
+            container["currency"] = currency
+        }
+    }
+    
     var migrator: DatabaseMigrator {
         var migrator = DatabaseMigrator()
         
@@ -87,6 +124,24 @@ struct AssociationFixture {
             try db.execute("INSERT INTO books (authorId, title, year) VALUES (?, ?, ?)", arguments: [robinsonId, "Green Mars", 1994])
             try db.execute("INSERT INTO books (authorId, title, year) VALUES (?, ?, ?)", arguments: [robinsonId, "Red Mars", 1993])
             try db.execute("INSERT INTO books (authorId, title, year) VALUES (?, ?, ?)", arguments: [nil, "Unattributed", 2017])
+            
+            try db.create(table: "countries") { t in
+                t.column("code", .text).primaryKey()
+                t.column("name", .text)
+            }
+            try db.execute("INSERT INTO countries (code, name) VALUES (?, ?)", arguments: ["FR", "France"])
+            try db.execute("INSERT INTO countries (code, name) VALUES (?, ?)", arguments: ["US", "United States"])
+            try db.execute("INSERT INTO countries (code, name) VALUES (?, ?)", arguments: ["DE", "Germany"])
+            try db.execute("INSERT INTO countries (code, name) VALUES (?, ?)", arguments: ["AA", "Atlantis"])
+            
+            try db.create(table: "countryProfiles") { t in
+                t.column("code", .text).primaryKey().references("countries")
+                t.column("area", .double)
+                t.column("currency", .text)
+            }
+            try db.execute("INSERT INTO countryProfiles (code, area, currency) VALUES (?, ?, ?)", arguments: ["FR", 643801, "EUR"])
+            try db.execute("INSERT INTO countryProfiles (code, area, currency) VALUES (?, ?, ?)", arguments: ["US", 9833520, "USD"])
+            try db.execute("INSERT INTO countryProfiles (code, area, currency) VALUES (?, ?, ?)", arguments: ["DE", 357168, "EUR"])
         }
         
         return migrator

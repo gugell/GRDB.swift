@@ -7,7 +7,7 @@ import XCTest
     @testable import GRDB
 #endif
 
-class BelongsToAssociationMappingsTests: GRDBTestCase {
+class BelongsToAssociationTests: GRDBTestCase {
     
     func assertEqual(_ mapping: [(left: String, right: String)], _ expectedMapping: [(left: String, right: String)], file: StaticString = #file, line: UInt = #line) {
         XCTAssertEqual(mapping.count, expectedMapping.count, file: file, line: line)
