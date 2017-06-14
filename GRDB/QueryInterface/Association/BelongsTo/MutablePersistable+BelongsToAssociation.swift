@@ -1,5 +1,5 @@
 extension MutablePersistable {
-    public func makeRequest<Fetched>(_ association: BelongsToAssociation<Self, Fetched>) -> QueryInterfaceRequest<Fetched> where Fetched: TableMapping & RowConvertible {
+    public func makeRequest<Fetched>(_ association: BelongsToAssociation<Self, Fetched>) -> QueryInterfaceRequest<Fetched> where Fetched: TableMapping {
         return association.makeRequest(from: self)
     }
     

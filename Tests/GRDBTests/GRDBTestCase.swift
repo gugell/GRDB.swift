@@ -140,6 +140,18 @@ class GRDBTestCase: XCTestCase {
         }
     }
     
+    func assertSQL(_ reader: DatabaseReader, _ request: Request, _ sql: String, file: StaticString = #file, line: UInt = #line) throws {
+        try reader.unsafeRead { db in
+            try assertSQL(db, request, sql, file: file, line: line)
+        }
+    }
+    
+    func assertSQL(_ db: Database, _ request: Request, _ sql: String, file: StaticString = #file, line: UInt = #line) throws {
+        _ = try Row.fetchOne(db, request)
+        XCTAssertEqual(lastSQLQuery, sql, file: file, line: line)
+    }
+    
+    // TODO: refactor around assertSQL
     func sql(_ databaseReader: DatabaseReader, _ request: Request) -> String {
         return try! databaseReader.unsafeRead { db in
             _ = try Row.fetchOne(db, request)
