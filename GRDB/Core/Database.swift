@@ -1212,7 +1212,7 @@ extension Database {
             primaryKey = .regular(pkColumns.map { $0.name })
         }
         
-        schemaCache.set(primaryKey: primaryKey, for: tableName)
+        schemaCache.set(primaryKey: primaryKey, forTable: tableName)
         return primaryKey
     }
     
@@ -1267,7 +1267,7 @@ extension Database {
             throw DatabaseError(message: "no such table: \(tableName)")
         }
         
-        schemaCache.set(columns: columns, forTableName: tableName)
+        schemaCache.set(columns: columns, forTable: tableName)
         return columns
     }
     
@@ -1294,7 +1294,7 @@ extension Database {
             return IndexInfo(name: indexName, columns: columns, unique: unique)
         }
         
-        schemaCache.set(indexes: indexes, forTableName: tableName)
+        schemaCache.set(indexes: indexes, forTable: tableName)
         return indexes
     }
     
@@ -1328,35 +1328,50 @@ extension Database {
     }
     
     /// TODO
-    public func foreignKeys(_ tableName: String) throws -> [ForeignKeyInfo] {
-        // TODO: cache
+    public func foreignKeys(on tableName: String) throws -> [ForeignKeyInfo] {
+        if let foreignKeys = schemaCache.foreignKeys(on: tableName) {
+            return foreignKeys
+        }
         
-        var foreignKeys: [(destinationTable: String, mapping: [(origin: String, destination: String, seq: Int)])] = []
-        
+        var rawForeignKeys: [(destinationTable: String, mapping: [(origin: String, destination: String?, seq: Int)])] = []
         var previousId: Int? = nil
-        var previousSeq: Int? = nil
         for row in try Row.fetchAll(self, "PRAGMA foreign_key_list(\(tableName.quotedDatabaseIdentifier))") {
             // row = <Row id:0 seq:0 table:"parents" from:"parentId" to:"id" on_update:"..." on_delete:"..." match:"...">
             let id: Int = row.value(atIndex: 0)
             let seq: Int = row.value(atIndex: 1)
             let table: String = row.value(atIndex: 2)
             let origin: String = row.value(atIndex: 3)
-            let destination: String = row.value(atIndex: 4)
+            let destination: String? = row.value(atIndex: 4)
             
             if previousId == id {
-                foreignKeys[foreignKeys.count - 1].mapping.append((origin: origin, destination: destination, seq: seq))
+                rawForeignKeys[rawForeignKeys.count - 1].mapping.append((origin: origin, destination: destination, seq: seq))
             } else {
-                foreignKeys.append((destinationTable: table, mapping: [(origin: origin, destination: destination, seq: seq)]))
+                rawForeignKeys.append((destinationTable: table, mapping: [(origin: origin, destination: destination, seq: seq)]))
                 previousId = id
             }
         }
-        return foreignKeys.map { (destinationTable, columnMapping) -> ForeignKeyInfo in
-            ForeignKeyInfo(
-                destinationTable: destinationTable,
-                mapping: columnMapping
-                    .sorted { $0.seq < $1.seq }
-                    .map { (origin: $0.origin, destination: $0 .destination) })
+        
+        let foreignKeys = try rawForeignKeys.map { (destinationTable, columnMapping) -> ForeignKeyInfo in
+            let orderedMapping = columnMapping
+                .sorted { $0.seq < $1.seq }
+                .map { (origin: $0.origin, destination: $0 .destination) }
+            
+            let completeMapping: [(origin: String, destination: String)]
+            if orderedMapping.contains(where: { (_, destination) in destination == nil }) {
+                let pk = try primaryKey(destinationTable)!
+                completeMapping = zip(pk.columns, orderedMapping).map { (pkColumn, arrow) in
+                    (origin: arrow.origin, destination: pkColumn)
+                }
+            } else {
+                completeMapping = orderedMapping.map { (origin, destination) in
+                    (origin: origin, destination: destination!)
+                }
+            }
+            return ForeignKeyInfo(destinationTable: destinationTable, mapping: completeMapping)
         }
+        
+        schemaCache.set(foreignKeys: foreignKeys, forTable: tableName)
+        return foreignKeys
     }
 }
 

@@ -28,7 +28,7 @@ struct ColumnMappingRequest {
         }
         
         // Incomplete information: let's look for schema foreign keys
-        let foreignKeys = try db.foreignKeys(originTable).filter { foreignKey in
+        let foreignKeys = try db.foreignKeys(on: originTable).filter { foreignKey in
             if destinationTable.lowercased() != foreignKey.destinationTable.lowercased() {
                 return false
             }
