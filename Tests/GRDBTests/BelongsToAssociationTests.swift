@@ -1,21 +1,13 @@
 import XCTest
 #if GRDBCIPHER
-    @testable import GRDBCipher
+    import GRDBCipher
 #elseif GRDBCUSTOMSQLITE
-    @testable import GRDBCustomSQLite
+    import GRDBCustomSQLite
 #else
-    @testable import GRDB
+    import GRDB
 #endif
 
 class BelongsToAssociationTests: GRDBTestCase {
-    
-    func assertEqual(_ mapping: [(left: String, right: String)], _ expectedMapping: [(left: String, right: String)], file: StaticString = #file, line: UInt = #line) {
-        XCTAssertEqual(mapping.count, expectedMapping.count, file: file, line: line)
-        for (arrow, expectedArrow) in zip(mapping, expectedMapping) {
-            XCTAssertEqual(arrow.left, expectedArrow.left, file: file, line: line)
-            XCTAssertEqual(arrow.right, expectedArrow.right, file: file, line: line)
-        }
-    }
     
     func testSingleColumnNoForeignKeyNoPrimaryKey() throws {
         struct Child : TableMapping, MutablePersistable {
@@ -190,8 +182,12 @@ class BelongsToAssociationTests: GRDBTestCase {
     }
     
     func testCompoundColumnNoForeignKeyNoPrimaryKey() throws {
-        struct Child : TableMapping {
+        struct Child : TableMapping, MutablePersistable {
             static let databaseTableName = "children"
+            func encode(to container: inout PersistenceContainer) {
+                container["parentA"] = 1
+                container["parentB"] = 2
+            }
         }
         
         struct Parent : TableMapping {
@@ -215,13 +211,18 @@ class BelongsToAssociationTests: GRDBTestCase {
                 let association = Child.belongsTo(Parent.self, from: ["parentA", "parentB"], to: ["a", "b"])
                 try assertSQL(db, Child.all().joined(with: association), "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" JOIN \"parents\" AS \"right\" ON ((\"right\".\"a\" = \"left\".\"parentA\") AND (\"right\".\"b\" = \"left\".\"parentB\"))")
                 try assertSQL(db, Child.all().leftJoined(with: association), "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" LEFT JOIN \"parents\" AS \"right\" ON ((\"right\".\"a\" = \"left\".\"parentA\") AND (\"right\".\"b\" = \"left\".\"parentB\"))")
+                try assertSQL(db, Child().makeRequest(association), "SELECT * FROM \"parents\" WHERE ((\"a\" = 1) AND (\"b\" = 2))")
             }
         }
     }
     
     func testCompoundColumnNoForeignKey() throws {
-        struct Child : TableMapping {
+        struct Child : TableMapping, MutablePersistable {
             static let databaseTableName = "children"
+            func encode(to container: inout PersistenceContainer) {
+                container["parentA"] = 1
+                container["parentB"] = 2
+            }
         }
         
         struct Parent : TableMapping {
@@ -246,18 +247,24 @@ class BelongsToAssociationTests: GRDBTestCase {
                 let association = Child.belongsTo(Parent.self, from: "parentA", "parentB")
                 try assertSQL(db, Child.all().joined(with: association), "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" JOIN \"parents\" AS \"right\" ON ((\"right\".\"a\" = \"left\".\"parentA\") AND (\"right\".\"b\" = \"left\".\"parentB\"))")
                 try assertSQL(db, Child.all().leftJoined(with: association), "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" LEFT JOIN \"parents\" AS \"right\" ON ((\"right\".\"a\" = \"left\".\"parentA\") AND (\"right\".\"b\" = \"left\".\"parentB\"))")
+                try assertSQL(db, Child().makeRequest(association), "SELECT * FROM \"parents\" WHERE ((\"a\" = 1) AND (\"b\" = 2))")
             }
             do {
                 let association = Child.belongsTo(Parent.self, from: ["parentA", "parentB"], to: ["a", "b"])
                 try assertSQL(db, Child.all().joined(with: association), "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" JOIN \"parents\" AS \"right\" ON ((\"right\".\"a\" = \"left\".\"parentA\") AND (\"right\".\"b\" = \"left\".\"parentB\"))")
                 try assertSQL(db, Child.all().leftJoined(with: association), "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" LEFT JOIN \"parents\" AS \"right\" ON ((\"right\".\"a\" = \"left\".\"parentA\") AND (\"right\".\"b\" = \"left\".\"parentB\"))")
+                try assertSQL(db, Child().makeRequest(association), "SELECT * FROM \"parents\" WHERE ((\"a\" = 1) AND (\"b\" = 2))")
             }
         }
     }
     
     func testCompoundColumnSingleForeignKey() throws {
-        struct Child : TableMapping {
+        struct Child : TableMapping, MutablePersistable {
             static let databaseTableName = "children"
+            func encode(to container: inout PersistenceContainer) {
+                container["parentA"] = 1
+                container["parentB"] = 2
+            }
         }
         
         struct Parent : TableMapping {
@@ -283,23 +290,32 @@ class BelongsToAssociationTests: GRDBTestCase {
                 let association = Child.belongsTo(Parent.self)
                 try assertSQL(db, Child.all().joined(with: association), "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" JOIN \"parents\" AS \"right\" ON ((\"right\".\"a\" = \"left\".\"parentA\") AND (\"right\".\"b\" = \"left\".\"parentB\"))")
                 try assertSQL(db, Child.all().leftJoined(with: association), "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" LEFT JOIN \"parents\" AS \"right\" ON ((\"right\".\"a\" = \"left\".\"parentA\") AND (\"right\".\"b\" = \"left\".\"parentB\"))")
+                try assertSQL(db, Child().makeRequest(association), "SELECT * FROM \"parents\" WHERE ((\"a\" = 1) AND (\"b\" = 2))")
             }
             do {
                 let association = Child.belongsTo(Parent.self, from: "parentA", "parentB")
                 try assertSQL(db, Child.all().joined(with: association), "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" JOIN \"parents\" AS \"right\" ON ((\"right\".\"a\" = \"left\".\"parentA\") AND (\"right\".\"b\" = \"left\".\"parentB\"))")
                 try assertSQL(db, Child.all().leftJoined(with: association), "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" LEFT JOIN \"parents\" AS \"right\" ON ((\"right\".\"a\" = \"left\".\"parentA\") AND (\"right\".\"b\" = \"left\".\"parentB\"))")
+                try assertSQL(db, Child().makeRequest(association), "SELECT * FROM \"parents\" WHERE ((\"a\" = 1) AND (\"b\" = 2))")
             }
             do {
                 let association = Child.belongsTo(Parent.self, from: ["parentA", "parentB"], to: ["a", "b"])
                 try assertSQL(db, Child.all().joined(with: association), "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" JOIN \"parents\" AS \"right\" ON ((\"right\".\"a\" = \"left\".\"parentA\") AND (\"right\".\"b\" = \"left\".\"parentB\"))")
                 try assertSQL(db, Child.all().leftJoined(with: association), "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" LEFT JOIN \"parents\" AS \"right\" ON ((\"right\".\"a\" = \"left\".\"parentA\") AND (\"right\".\"b\" = \"left\".\"parentB\"))")
+                try assertSQL(db, Child().makeRequest(association), "SELECT * FROM \"parents\" WHERE ((\"a\" = 1) AND (\"b\" = 2))")
             }
         }
     }
     
     func testCompoundColumnSeveralForeignKeys() throws {
-        struct Child : TableMapping {
+        struct Child : TableMapping, MutablePersistable {
             static let databaseTableName = "children"
+            func encode(to container: inout PersistenceContainer) {
+                container["parent1A"] = 1
+                container["parent1B"] = 2
+                container["parent2A"] = 3
+                container["parent2B"] = 4
+            }
         }
         
         struct Parent : TableMapping {
@@ -328,21 +344,25 @@ class BelongsToAssociationTests: GRDBTestCase {
                 let association = Child.belongsTo(Parent.self, from: "parent1A", "parent1B")
                 try assertSQL(db, Child.all().joined(with: association), "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" JOIN \"parents\" AS \"right\" ON ((\"right\".\"a\" = \"left\".\"parent1A\") AND (\"right\".\"b\" = \"left\".\"parent1B\"))")
                 try assertSQL(db, Child.all().leftJoined(with: association), "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" LEFT JOIN \"parents\" AS \"right\" ON ((\"right\".\"a\" = \"left\".\"parent1A\") AND (\"right\".\"b\" = \"left\".\"parent1B\"))")
+                try assertSQL(db, Child().makeRequest(association), "SELECT * FROM \"parents\" WHERE ((\"a\" = 1) AND (\"b\" = 2))")
             }
             do {
                 let association = Child.belongsTo(Parent.self, from: ["parent1A", "parent1B"], to: ["a", "b"])
                 try assertSQL(db, Child.all().joined(with: association), "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" JOIN \"parents\" AS \"right\" ON ((\"right\".\"a\" = \"left\".\"parent1A\") AND (\"right\".\"b\" = \"left\".\"parent1B\"))")
                 try assertSQL(db, Child.all().leftJoined(with: association), "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" LEFT JOIN \"parents\" AS \"right\" ON ((\"right\".\"a\" = \"left\".\"parent1A\") AND (\"right\".\"b\" = \"left\".\"parent1B\"))")
+                try assertSQL(db, Child().makeRequest(association), "SELECT * FROM \"parents\" WHERE ((\"a\" = 1) AND (\"b\" = 2))")
             }
             do {
                 let association = Child.belongsTo(Parent.self, from: "parent2A", "parent2B")
                 try assertSQL(db, Child.all().joined(with: association), "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" JOIN \"parents\" AS \"right\" ON ((\"right\".\"a\" = \"left\".\"parent2A\") AND (\"right\".\"b\" = \"left\".\"parent2B\"))")
                 try assertSQL(db, Child.all().leftJoined(with: association), "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" LEFT JOIN \"parents\" AS \"right\" ON ((\"right\".\"a\" = \"left\".\"parent2A\") AND (\"right\".\"b\" = \"left\".\"parent2B\"))")
+                try assertSQL(db, Child().makeRequest(association), "SELECT * FROM \"parents\" WHERE ((\"a\" = 3) AND (\"b\" = 4))")
             }
             do {
                 let association = Child.belongsTo(Parent.self, from: ["parent2A", "parent2B"], to: ["a", "b"])
                 try assertSQL(db, Child.all().joined(with: association), "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" JOIN \"parents\" AS \"right\" ON ((\"right\".\"a\" = \"left\".\"parent2A\") AND (\"right\".\"b\" = \"left\".\"parent2B\"))")
                 try assertSQL(db, Child.all().leftJoined(with: association), "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" LEFT JOIN \"parents\" AS \"right\" ON ((\"right\".\"a\" = \"left\".\"parent2A\") AND (\"right\".\"b\" = \"left\".\"parent2B\"))")
+                try assertSQL(db, Child().makeRequest(association), "SELECT * FROM \"parents\" WHERE ((\"a\" = 3) AND (\"b\" = 4))")
             }
         }
     }
