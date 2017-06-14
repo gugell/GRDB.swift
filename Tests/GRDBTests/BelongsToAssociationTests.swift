@@ -39,8 +39,18 @@ class BelongsToAssociationTests: GRDBTestCase {
         }
         
         try dbQueue.inDatabase { db in
-            try assertEqual(Child.belongsTo(Parent.self, from: "parentId").mapping(db), [(left: "parentId", right: "id")])
-            try assertEqual(Child.belongsTo(Parent.self, from: ["parentId"], to: ["id"]).mapping(db), [(left: "parentId", right: "id")])
+            do {
+                let association = Child.belongsTo(Parent.self, from: "parentId")
+                try assertEqual(association.mapping(db), [(left: "parentId", right: "id")])
+                _ = try Row.fetchAll(db, Child.all().joined(with: association))
+                XCTAssertEqual(lastSQLQuery, "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" JOIN \"parents\" AS \"right\" ON (\"right\".\"id\" = \"left\".\"parentId\")")
+            }
+            do {
+                let association = Child.belongsTo(Parent.self, from: ["parentId"], to: ["id"])
+                try assertEqual(association.mapping(db), [(left: "parentId", right: "id")])
+                _ = try Row.fetchAll(db, Child.all().joined(with: association))
+                XCTAssertEqual(lastSQLQuery, "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" JOIN \"parents\" AS \"right\" ON (\"right\".\"id\" = \"left\".\"parentId\")")
+            }
         }
     }
     
@@ -64,9 +74,24 @@ class BelongsToAssociationTests: GRDBTestCase {
         }
         
         try dbQueue.inDatabase { db in
-            try assertEqual(Child.belongsTo(Parent.self).mapping(db), [(left: "parentId", right: "id")])
-            try assertEqual(Child.belongsTo(Parent.self, from: "parentId").mapping(db), [(left: "parentId", right: "id")])
-            try assertEqual(Child.belongsTo(Parent.self, from: ["parentId"], to: ["id"]).mapping(db), [(left: "parentId", right: "id")])
+            do {
+                let association = Child.belongsTo(Parent.self)
+                try assertEqual(association.mapping(db), [(left: "parentId", right: "id")])
+                _ = try Row.fetchAll(db, Child.all().joined(with: association))
+                XCTAssertEqual(lastSQLQuery, "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" JOIN \"parents\" AS \"right\" ON (\"right\".\"id\" = \"left\".\"parentId\")")
+            }
+            do {
+                let association = Child.belongsTo(Parent.self, from: "parentId")
+                try assertEqual(association.mapping(db), [(left: "parentId", right: "id")])
+                _ = try Row.fetchAll(db, Child.all().joined(with: association))
+                XCTAssertEqual(lastSQLQuery, "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" JOIN \"parents\" AS \"right\" ON (\"right\".\"id\" = \"left\".\"parentId\")")
+            }
+            do {
+                let association = Child.belongsTo(Parent.self, from: ["parentId"], to: ["id"])
+                try assertEqual(association.mapping(db), [(left: "parentId", right: "id")])
+                _ = try Row.fetchAll(db, Child.all().joined(with: association))
+                XCTAssertEqual(lastSQLQuery, "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" JOIN \"parents\" AS \"right\" ON (\"right\".\"id\" = \"left\".\"parentId\")")
+            }
         }
     }
     
@@ -91,10 +116,30 @@ class BelongsToAssociationTests: GRDBTestCase {
         }
         
         try dbQueue.inDatabase { db in
-            try assertEqual(Child.belongsTo(Parent.self, from: "parent1Id").mapping(db), [(left: "parent1Id", right: "id")])
-            try assertEqual(Child.belongsTo(Parent.self, from: ["parent1Id"], to: ["id"]).mapping(db), [(left: "parent1Id", right: "id")])
-            try assertEqual(Child.belongsTo(Parent.self, from: "parent2Id").mapping(db), [(left: "parent2Id", right: "id")])
-            try assertEqual(Child.belongsTo(Parent.self, from: ["parent2Id"], to: ["id"]).mapping(db), [(left: "parent2Id", right: "id")])
+            do {
+                let association = Child.belongsTo(Parent.self, from: "parent1Id")
+                try assertEqual(association.mapping(db), [(left: "parent1Id", right: "id")])
+                _ = try Row.fetchAll(db, Child.all().joined(with: association))
+                XCTAssertEqual(lastSQLQuery, "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" JOIN \"parents\" AS \"right\" ON (\"right\".\"id\" = \"left\".\"parent1Id\")")
+            }
+            do {
+                let association = Child.belongsTo(Parent.self, from: ["parent1Id"], to: ["id"])
+                try assertEqual(association.mapping(db), [(left: "parent1Id", right: "id")])
+                _ = try Row.fetchAll(db, Child.all().joined(with: association))
+                XCTAssertEqual(lastSQLQuery, "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" JOIN \"parents\" AS \"right\" ON (\"right\".\"id\" = \"left\".\"parent1Id\")")
+            }
+            do {
+                let association = Child.belongsTo(Parent.self, from: "parent2Id")
+                try assertEqual(association.mapping(db), [(left: "parent2Id", right: "id")])
+                _ = try Row.fetchAll(db, Child.all().joined(with: association))
+                XCTAssertEqual(lastSQLQuery, "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" JOIN \"parents\" AS \"right\" ON (\"right\".\"id\" = \"left\".\"parent2Id\")")
+            }
+            do {
+                let association = Child.belongsTo(Parent.self, from: ["parent2Id"], to: ["id"])
+                try assertEqual(association.mapping(db), [(left: "parent2Id", right: "id")])
+                _ = try Row.fetchAll(db, Child.all().joined(with: association))
+                XCTAssertEqual(lastSQLQuery, "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" JOIN \"parents\" AS \"right\" ON (\"right\".\"id\" = \"left\".\"parent2Id\")")
+            }
         }
     }
     
@@ -121,8 +166,18 @@ class BelongsToAssociationTests: GRDBTestCase {
         }
         
         try dbQueue.inDatabase { db in
-            try assertEqual(Child.belongsTo(Parent.self, from: "parentA", "parentB").mapping(db), [(left: "parentA", right: "a"), (left: "parentB", right: "b")])
-            try assertEqual(Child.belongsTo(Parent.self, from: ["parentA", "parentB"], to: ["a", "b"]).mapping(db), [(left: "parentA", right: "a"), (left: "parentB", right: "b")])
+            do {
+                let association = Child.belongsTo(Parent.self, from: "parentA", "parentB")
+                try assertEqual(association.mapping(db), [(left: "parentA", right: "a"), (left: "parentB", right: "b")])
+                _ = try Row.fetchAll(db, Child.all().joined(with: association))
+                XCTAssertEqual(lastSQLQuery, "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" JOIN \"parents\" AS \"right\" ON ((\"right\".\"a\" = \"left\".\"parentA\") AND (\"right\".\"b\" = \"left\".\"parentB\"))")
+            }
+            do {
+                let association = Child.belongsTo(Parent.self, from: ["parentA", "parentB"], to: ["a", "b"])
+                try assertEqual(association.mapping(db), [(left: "parentA", right: "a"), (left: "parentB", right: "b")])
+                _ = try Row.fetchAll(db, Child.all().joined(with: association))
+                XCTAssertEqual(lastSQLQuery, "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" JOIN \"parents\" AS \"right\" ON ((\"right\".\"a\" = \"left\".\"parentA\") AND (\"right\".\"b\" = \"left\".\"parentB\"))")
+            }
         }
     }
     
@@ -150,9 +205,24 @@ class BelongsToAssociationTests: GRDBTestCase {
         }
         
         try dbQueue.inDatabase { db in
-            try assertEqual(Child.belongsTo(Parent.self).mapping(db), [(left: "parentA", right: "a"), (left: "parentB", right: "b")])
-            try assertEqual(Child.belongsTo(Parent.self, from: "parentA", "parentB").mapping(db), [(left: "parentA", right: "a"), (left: "parentB", right: "b")])
-            try assertEqual(Child.belongsTo(Parent.self, from: ["parentA", "parentB"], to: ["a", "b"]).mapping(db), [(left: "parentA", right: "a"), (left: "parentB", right: "b")])
+            do {
+                let association = Child.belongsTo(Parent.self)
+                try assertEqual(association.mapping(db), [(left: "parentA", right: "a"), (left: "parentB", right: "b")])
+                _ = try Row.fetchAll(db, Child.all().joined(with: association))
+                XCTAssertEqual(lastSQLQuery, "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" JOIN \"parents\" AS \"right\" ON ((\"right\".\"a\" = \"left\".\"parentA\") AND (\"right\".\"b\" = \"left\".\"parentB\"))")
+            }
+            do {
+                let association = Child.belongsTo(Parent.self, from: "parentA", "parentB")
+                try assertEqual(association.mapping(db), [(left: "parentA", right: "a"), (left: "parentB", right: "b")])
+                _ = try Row.fetchAll(db, Child.all().joined(with: association))
+                XCTAssertEqual(lastSQLQuery, "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" JOIN \"parents\" AS \"right\" ON ((\"right\".\"a\" = \"left\".\"parentA\") AND (\"right\".\"b\" = \"left\".\"parentB\"))")
+            }
+            do {
+                let association = Child.belongsTo(Parent.self, from: ["parentA", "parentB"], to: ["a", "b"])
+                try assertEqual(association.mapping(db), [(left: "parentA", right: "a"), (left: "parentB", right: "b")])
+                _ = try Row.fetchAll(db, Child.all().joined(with: association))
+                XCTAssertEqual(lastSQLQuery, "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" JOIN \"parents\" AS \"right\" ON ((\"right\".\"a\" = \"left\".\"parentA\") AND (\"right\".\"b\" = \"left\".\"parentB\"))")
+            }
         }
     }
     
@@ -183,10 +253,30 @@ class BelongsToAssociationTests: GRDBTestCase {
         }
         
         try dbQueue.inDatabase { db in
-            try assertEqual(Child.belongsTo(Parent.self, from: "parent1A", "parent1B").mapping(db), [(left: "parent1A", right: "a"), (left: "parent1B", right: "b")])
-            try assertEqual(Child.belongsTo(Parent.self, from: ["parent1A", "parent1B"], to: ["a", "b"]).mapping(db), [(left: "parent1A", right: "a"), (left: "parent1B", right: "b")])
-            try assertEqual(Child.belongsTo(Parent.self, from: "parent2A", "parent2B").mapping(db), [(left: "parent2A", right: "a"), (left: "parent2B", right: "b")])
-            try assertEqual(Child.belongsTo(Parent.self, from: ["parent2A", "parent2B"], to: ["a", "b"]).mapping(db), [(left: "parent2A", right: "a"), (left: "parent2B", right: "b")])
+            do {
+                let association = Child.belongsTo(Parent.self, from: "parent1A", "parent1B")
+                try assertEqual(association.mapping(db), [(left: "parent1A", right: "a"), (left: "parent1B", right: "b")])
+                _ = try Row.fetchAll(db, Child.all().joined(with: association))
+                XCTAssertEqual(lastSQLQuery, "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" JOIN \"parents\" AS \"right\" ON ((\"right\".\"a\" = \"left\".\"parent1A\") AND (\"right\".\"b\" = \"left\".\"parent1B\"))")
+            }
+            do {
+                let association = Child.belongsTo(Parent.self, from: ["parent1A", "parent1B"], to: ["a", "b"])
+                try assertEqual(association.mapping(db), [(left: "parent1A", right: "a"), (left: "parent1B", right: "b")])
+                _ = try Row.fetchAll(db, Child.all().joined(with: association))
+                XCTAssertEqual(lastSQLQuery, "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" JOIN \"parents\" AS \"right\" ON ((\"right\".\"a\" = \"left\".\"parent1A\") AND (\"right\".\"b\" = \"left\".\"parent1B\"))")
+            }
+            do {
+                let association = Child.belongsTo(Parent.self, from: "parent2A", "parent2B")
+                try assertEqual(association.mapping(db), [(left: "parent2A", right: "a"), (left: "parent2B", right: "b")])
+                _ = try Row.fetchAll(db, Child.all().joined(with: association))
+                XCTAssertEqual(lastSQLQuery, "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" JOIN \"parents\" AS \"right\" ON ((\"right\".\"a\" = \"left\".\"parent2A\") AND (\"right\".\"b\" = \"left\".\"parent2B\"))")
+            }
+            do {
+                let association = Child.belongsTo(Parent.self, from: ["parent2A", "parent2B"], to: ["a", "b"])
+                try assertEqual(association.mapping(db), [(left: "parent2A", right: "a"), (left: "parent2B", right: "b")])
+                _ = try Row.fetchAll(db, Child.all().joined(with: association))
+                XCTAssertEqual(lastSQLQuery, "SELECT \"left\".*, \"right\".* FROM \"children\" AS \"left\" JOIN \"parents\" AS \"right\" ON ((\"right\".\"a\" = \"left\".\"parent2A\") AND (\"right\".\"b\" = \"left\".\"parent2B\"))")
+            }
         }
     }
 }
