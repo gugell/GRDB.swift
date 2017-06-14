@@ -6,15 +6,20 @@ extension TableMapping {
         return HasManyAssociation(columnMappingRequest: columnMappingRequest, rightRequest: Right.all())
     }
     
-    public static func hasMany<Right>(_ right: Right.Type, from column: String) -> HasManyAssociation<Self, Right> where Right: TableMapping {
+    public static func hasMany<Right>(_ right: Right.Type, from originColumns: String...) -> HasManyAssociation<Self, Right> where Right: TableMapping {
         let columnMappingRequest = ColumnMappingRequest(
             originTable: Right.databaseTableName,
             destinationTable: databaseTableName,
-            originColumns: [column])
+            originColumns: originColumns)
         return HasManyAssociation(columnMappingRequest: columnMappingRequest, rightRequest: Right.all())
     }
     
-    // TODO: multiple right columns
-    // TODO: fully qualified foreign key (left + right columns)
+    public static func hasMany<Right>(_ right: Right.Type, from originColumns: [String], to destinationColumns: [String]) -> HasManyAssociation<Self, Right> where Right: TableMapping {
+        let columnMappingRequest = ColumnMappingRequest(
+            originTable: Right.databaseTableName,
+            destinationTable: databaseTableName,
+            originColumns: originColumns,
+            destinationColumns: destinationColumns)
+        return HasManyAssociation(columnMappingRequest: columnMappingRequest, rightRequest: Right.all())
+    }
 }
-
